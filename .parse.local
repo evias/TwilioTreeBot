@@ -1,0 +1,10 @@
+{
+  "applications": {
+    "TwilioTreeBot": {
+      "applicationId": "ThfEtMA3gRRKGjcf63fNTb297LWMUuhPyZtAeOhu"
+    },
+    "_default": {
+      "link": "TwilioTreeBot"
+    }
+  }
+}
