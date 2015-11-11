@@ -1,8 +1,19 @@
 <?php
-/**
- * XXX: /tree
- * XXX: /fallback
- **/
+use Parse\ParseClient;
+use Parse\ParseObject;
+use Parse\ParseQuery;
+
+if ($_GET['tree']) :
+    $client = ParseClient::initialize(
+        'ThfEtMA3gRRKGjcf63fNTb297LWMUuhPyZtAeOhu',
+        'tr7KcgAiaNSDMNgiEAXaw4ETjMkz04nyRIpY2fHj',
+        'CdHxDluxMjPbICiNpKFe5JpucTZwlEPWXQxYITA7'
+    );
+
+    $_POST['tree'] = $_GET['tree'];
+    ParseCloud::run("handleTree", $_POST);
+    exit;
+endif;
 ?>
 
 <!DOCTYPE html>
