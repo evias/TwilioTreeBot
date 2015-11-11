@@ -89,6 +89,8 @@
             },
             error: function(message) {
                 alert('Error /startTree: ', message);
+
+                $("#account-submit").html("Start");
             }
         });
     }
@@ -142,12 +144,16 @@
                     },
                     error: function(error) {
                         alert('Error in Account fetch: ', error);
+
+                        $("#account-submit").html("Start");
                     }
                 });
 
             },
             error: function(message) {
                 alert('Error /syncAccount: ', message);
+
+                $("#account-submit").html("Start");
             }
         });
     });
