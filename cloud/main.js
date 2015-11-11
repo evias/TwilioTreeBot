@@ -98,11 +98,11 @@ Parse.Cloud.define("syncAccount", function(request, response)
 
 Parse.Cloud.define("startTree", function(request, response)
 {
-    var twilioSID = "undefined" != typeof request.params.twilioSid ?
-                request.params.twilioSid : "";
+    var accountId = "undefined" != typeof request.params.accountId ?
+                request.params.accountId : "";
 
     var query = new Parse.Query(TwilioAccount);
-    query.equalTo("twilioSID", twilioSID);
+    query.equalTo("objectId", accountId);
 
     // when the entity is loaded we are up to sending
     // the first SMS of the decision tree.
@@ -110,7 +110,7 @@ Parse.Cloud.define("startTree", function(request, response)
         success: function() {
             console.log("Sending first SMS in Tree for: ", parseTwilioAccount);
 
-            twilioClient.accounts(twilioSID).sms.messages.create({
+            twilioClient.accounts(accountId).sms.messages.create({
                 to: parseTwilioAccount.phoneNumber,
                 from: '+32496774016',
                 body: OutboundMessage.getFirstText(parseTwilioAccount).msgText

@@ -48,15 +48,15 @@
 
     function startTree(account)
     {
-        if (! account.twilioSID) {
-            console.log("Error /startTree, empty twilioSID in TwilioAccount: ", account);
+        if (! account.id) {
+            console.log("Error /startTree, empty ID in TwilioAccount: ", account);
             return false;
         }
 
         console.log("Running /startTree with TwilioAccount: ", account);
 
         Parse.Cloud.run("startTree", {
-            twilioSid: account.twilioSID
+            accountId: account.id
         },
         {
             success: function(message) {
