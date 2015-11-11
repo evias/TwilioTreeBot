@@ -1,3 +1,10 @@
+<?php
+/**
+ * XXX: /tree
+ * XXX: /fallback
+ **/
+?>
+
 <!DOCTYPE html>
 <html>
   <head>
