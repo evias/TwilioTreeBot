@@ -31,6 +31,11 @@
       box-shadow:none;
       border-color: #599E5A;
     }
+    #api-response {
+        display: none;
+    }
+    #api-response.success { color: #0f0; }
+    #api-response.error { color: #f00; }
     </style>
   </head>
   <body>
@@ -38,6 +43,8 @@
         <h1>Welcome to TwilioTreeBot. - <?php echo date("Y-m-d"); ?></h1>
         <p>To get started, you can fill the below form. Upon submission, the SMS
         decision Tree will be started.</p>
+
+        <div id="api-response"></div>
 
         <div id="input-wrapper">
             <input type="text" id="firstName" placeholder="Enter a first name">
@@ -69,6 +76,14 @@
         {
             success: function(message) {
                 console.log("Success /startTree: ", message);
+
+                var cls = "success";
+                if (message.match(/^API call OK.*/))
+                    cls = "error";
+
+                $("#api-response").addClass("cls");
+                $("#api-response").text(message);
+                $("#api-response").fadeIn();
             },
             error: function(message) {
                 alert('Error /startTree: ', message);
