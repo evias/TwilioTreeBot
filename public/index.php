@@ -42,7 +42,7 @@
 
     <script>
     Parse.initialize('ThfEtMA3gRRKGjcf63fNTb297LWMUuhPyZtAeOhu',
-                     'r1joBc0aeJT782Tn3pSdfDMEG36iierH2oZOmVeB');
+                     'tr7KcgAiaNSDMNgiEAXaw4ETjMkz04nyRIpY2fHj');
 
     $('#account-submit').on('click', function()
     {
