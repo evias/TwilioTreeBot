@@ -31,9 +31,8 @@
       box-shadow:none;
       border-color: #599E5A;
     }
-    #api-response {
-        display: none;
-    }
+    #api-response { display: none; }
+    #ajax-loading { display: none; }
     #api-response.success { color: #0f0; }
     #api-response.error { color: #f00; }
     </style>
@@ -45,6 +44,7 @@
         decision Tree will be started.</p>
 
         <div id="api-response"></div>
+        <div id="ajax-loading"><img src="/images/ajax-loading.gif" alt="Working.." /></div>
 
         <div id="input-wrapper">
             <input type="text" id="firstName" placeholder="Enter a first name">
@@ -81,9 +81,11 @@
                 if (message.match(/^API call OK.*/))
                     cls = "error";
 
-                $("#api-response").addClass("cls");
+                $("#api-response").addClass(cls);
                 $("#api-response").text(message);
                 $("#api-response").fadeIn();
+
+                $("#account-submit").html("Start");
             },
             error: function(message) {
                 alert('Error /startTree: ', message);
@@ -93,6 +95,8 @@
 
     $('#account-submit').on('click', function()
     {
+        var button = $(this);
+
         var name  = $("#firstName").val();
         var phone = $("#phoneNumber").val();
         var url   = $("#url").val();
@@ -106,6 +110,9 @@
 
             return false;
         }
+
+        // set ajax loader
+        button.html($("#ajax-loading").html());
 
         // syncAccount call to create / retrieve Parse App TwilioAccount
         // and synchronize it with a Twilio Subaccount.
