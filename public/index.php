@@ -5,8 +5,8 @@
     <meta name="description" content="TwilioTreeBot App">
     <meta name="viewport" content="width=device-width">
 
-    <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
-    <script type="text/javascript" src="http://www.parsecdn.com/js/parse-1.6.7.min.js"></script>
+    <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+    <script type="text/javascript" src="//www.parsecdn.com/js/parse-1.6.7.min.js"></script>
 
     <style>
     body { font-family: Helvetica, Arial, sans-serif; }
