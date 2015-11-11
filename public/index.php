@@ -44,20 +44,80 @@
     Parse.initialize('ThfEtMA3gRRKGjcf63fNTb297LWMUuhPyZtAeOhu',
                      'tr7KcgAiaNSDMNgiEAXaw4ETjMkz04nyRIpY2fHj');
 
-    $('#account-submit').on('click', function()
+    var TwilioAccount = Parse.Object.extend("TwilioAccount");
+
+    function startTree(account)
     {
-        Parse.Cloud.run('startTree',
-        {
-            firstName: $("#firstName").val(),
-            phoneNumber: $("#phoneNumber").val(),
-            url: $("#url").val()
+        if (! account.twilioSID) {
+            console.log("Error /startTree, empty twilioSID in TwilioAccount: ", account);
+            return false;
+        }
+
+        console.log("Running /startTree with TwilioAccount: ", account);
+
+        Parse.Cloud.run("startTree", {
+            twilioSid: account.twilioSID
         },
         {
             success: function(message) {
-                alert('Success: ' + message);
+                console.log("Success /startTree: ", message);
             },
             error: function(message) {
-                alert('Error: ' + message);
+                alert('Error /startTree: ', message);
+            }
+        });
+    }
+
+    $('#account-submit').on('click', function()
+    {
+        var name  = $("#firstName").val();
+        var phone = $("#phoneNumber").val();
+        var url   = $("#url").val();
+
+        if (! name.length || ! phone.length) {
+            if (!name.length)
+                $("#firstName").css("border", "1px solid #ff0000");
+
+            if (!phone.length)
+                $("#phoneNumber").css("border", "1px solid #ff0000");
+
+            return false;
+        }
+
+        // syncAccount call to create / retrieve Parse App TwilioAccount
+        // and synchronize it with a Twilio Subaccount.
+        Parse.Cloud.run("syncAccount",
+        {
+            firstName: name,
+            phoneNumber: phone,
+            url: url
+        },
+        {
+            success: function(message) {
+                console.log("Success /syncAccount: ", message);
+
+                // fetch Parse App TwilioAccount
+                var query = new Parse.Query(TwilioAccount);
+                query.equalTo("firstName", name);
+                query.equalTo("phoneNumber", phone);
+
+                // when the entity is loaded we are up to running
+                // the startTree API function.
+                query.first({
+                    success: function(parseTwilioAccount) {
+                        console.log("Starting Decision Tree with: ", parseTwilioAccount);
+
+                        // start Decision Tree !
+                        startTree(parseTwilioAccount);
+                    },
+                    error: function(error) {
+                        alert('Error in Account fetch: ', error);
+                    }
+                });
+
+            },
+            error: function(message) {
+                alert('Error /syncAccount: ', message);
             }
         });
     });
