@@ -10,8 +10,8 @@ if ($_GET['tree']) :
         'CdHxDluxMjPbICiNpKFe5JpucTZwlEPWXQxYITA7'
     );
 
-    $_POST['tree'] = $_GET['tree'];
-    ParseCloud::run("handleTree", $_POST);
+    $_REQUEST['tree'] = $_GET['tree'];
+    ParseCloud::run("handleTree", json_encode($_REQUEST));
     exit;
 endif;
 ?>
