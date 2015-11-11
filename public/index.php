@@ -45,6 +45,7 @@
                      'tr7KcgAiaNSDMNgiEAXaw4ETjMkz04nyRIpY2fHj');
 
     var TwilioAccount = Parse.Object.extend("TwilioAccount");
+    Parse.Object.registerSubclass("TwilioAccount", TwilioAccount);
 
     function startTree(account)
     {

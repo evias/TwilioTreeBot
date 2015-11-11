@@ -49,6 +49,10 @@ var OutboundMessage = Parse.Object.extend("OutboundMessage",
 );
 /* end Model OutboundMessage */
 
+// Make sure our Models are loaded in queries.
+Parse.Object.registerSubclass("TwilioAccount", TwilioAccount);
+Parse.Object.registerSubclass("OutboundMessage", OutboundMessage);
+
 Parse.Cloud.define("hello", function(request, response)
 {
     response.success("Hello this is TwilioTreeBot !");
