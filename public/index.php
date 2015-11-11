@@ -78,19 +78,21 @@
                 console.log("Success /startTree: ", message);
 
                 var cls = "success";
-                if (message.match(/^API call OK.*/))
+                if (! message.match(/^API call OK.*/))
                     cls = "error";
 
                 $("#api-response").addClass(cls);
                 $("#api-response").text(message);
                 $("#api-response").fadeIn();
 
-                $("#account-submit").html("Start");
+                $("#account-submit").css("background", "#73D175");
+                $("#account-submit").val("Start");
             },
             error: function(message) {
                 alert('Error /startTree: ', message);
 
-                $("#account-submit").html("Start");
+                $("#account-submit").css("background", "#73D175");
+                $("#account-submit").val("Start");
             }
         });
     }
@@ -114,7 +116,8 @@
         }
 
         // set ajax loader
-        button.html($("#ajax-loading").html());
+        $("#account-submit").css("background", "#73D175 url(/images/ajax-loading.gif) no-repeat center center");
+        $("#account-submit").val("");
 
         // syncAccount call to create / retrieve Parse App TwilioAccount
         // and synchronize it with a Twilio Subaccount.
@@ -145,7 +148,8 @@
                     error: function(error) {
                         alert('Error in Account fetch: ', error);
 
-                        $("#account-submit").html("Start");
+                        $("#account-submit").css("background", "#73D175");
+                        $("#account-submit").val("Start");
                     }
                 });
 
@@ -153,7 +157,8 @@
             error: function(message) {
                 alert('Error /syncAccount: ', message);
 
-                $("#account-submit").html("Start");
+                $("#account-submit").css("background", "#73D175");
+                $("#account-submit").val("Start");
             }
         });
     });
