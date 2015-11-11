@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html>
   <head>
     <title>TwilioTreeBot</title>
@@ -28,7 +28,7 @@
   </head>
   <body>
     <div id="main">
-        <h1>Welcome to TwilioTreeBot.</h1>
+        <h1>Welcome to TwilioTreeBot. - <?php echo date("Y-m-d"); ?></h1>
         <p>To get started, you can fill the below form. Upon submission, the SMS
         decision Tree will be started.</p>
 
