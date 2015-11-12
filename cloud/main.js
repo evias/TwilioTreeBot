@@ -1,6 +1,31 @@
 
-//var twilioClient = require('twilio')('AC89bea12cb6782b72bc47f37999953b2f', '89f842387581a640d48a7e4fea362888');
-var twilioClient = require('twilio')('AC21e6f51dd30c088d712931ac16cd3d15', '231c294c084b418681d01542722c89a0');
+/**
+ * LICENSE
+ *
+ Copyright 2015 Grégory Saive (greg@evias.be)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ *
+ * @package TwilioTreeBot
+ * @subpackage Parse CloudCode
+ * @author Grégory Saive <greg@evias.be>
+ * @license http://www.apache.org/licenses/LICENSE-2.0
+**/
+
+// PROD
+var twilioClient = require('twilio')('AC89bea12cb6782b72bc47f37999953b2f', '89f842387581a640d48a7e4fea362888');
+// TEST
+//var twilioClient = require('twilio')('AC21e6f51dd30c088d712931ac16cd3d15', '231c294c084b418681d01542722c89a0');
 var TwilioAccount = Parse.Object.extend("TwilioAccount",
     {
         /**
@@ -198,6 +223,13 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
                         case 4:
                             return FeedbackService.answerThanks(twilioAccount,
                                     incomingMessage, feedbackDiscussion, callback);
+
+                        // Discussion initiated by the customer, thank
+                        // him for the feedback.
+                        case 0:
+                            return FeedbackService.answerFeedback(twilioAccount,
+                                    incomingMessage, feedbackDiscussion, callback);
+
                     }
                 },
                 error: function(err)
@@ -265,8 +297,33 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
             feedbackDiscussion.set("state", 4);
             feedbackDiscussion.save();
 
-            outbound1.send(function() {});
-            return outbound2.send(callback);
+            outbound1.send(function() {
+                outbound2.send(callback);
+            });
+        },
+        answerFeedback: function(twilioAccount, incomingMessage, feedbackDiscussion, callback)
+        {
+            var accountId = feedbackDiscussion.get("accountId");
+            var msgText   = incomingMessage.get("body");
+            var outboundType1 = "feedback-first";
+            var outboundType2 = "feedback-second";
+
+            var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
+            outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
+            outbound1.save();
+
+            var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
+            outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
+            outbound2.save();
+
+            // NO UPDATE OF STATE BECAUSE THE
+            // CUSTOMER INITIATED THE DISCUSSION
+            //feedbackDiscussion.set("state", 4);
+            //feedbackDiscussion.save();
+
+            outbound1.send(function() {
+                outbound2.send(callback);
+            });
         }
     }
 );
@@ -332,9 +389,6 @@ Parse.Cloud.define("startTree", function(request, response)
     var accountId = "undefined" != typeof request.params.accountId ?
                 request.params.accountId : "";
 
-    var query = new Parse.Query(TwilioAccount);
-    query.equalTo("objectId", accountId);
-
     var sendTwilioWelcomeSMS = function(outboundMessage, twilioNumber, twilioAccount, callback)
         {
             // We are now starting the Feedback discussion
@@ -342,8 +396,8 @@ Parse.Cloud.define("startTree", function(request, response)
             var discussion = new FeedbackDiscussion();
             discussion.set("numberId", twilioNumber.id);
             discussion.set("accountId", twilioAccount.id);
-            discussion.set("twilioNumber", twilioNumber.phoneNumber);
-            discussion.set("customerNumber", twilioAccount.phoneNumber);
+            discussion.set("twilioNumber", twilioNumber.get("phoneNumber"));
+            discussion.set("customerNumber", twilioAccount.get("phoneNumber"));
             discussion.set("state", 1);
             discussion.save();
 
@@ -378,8 +432,9 @@ Parse.Cloud.define("startTree", function(request, response)
         }
 
     // when the entity is loaded we are up to sending
-    // the first SMS of the decision tree.
-    query.first({
+    // the first SMS of the decision tree. (and start a discussion)
+    var query = new Parse.Query(TwilioAccount);
+    query.get(accountId, {
         success: function(parseTwilioAccount) {
             console.log("found Account: #" + parseTwilioAccount.id);
 
@@ -403,6 +458,35 @@ Parse.Cloud.define("startTree", function(request, response)
                         });
                 }
                 else {
+
+    /**
+     * TO TEST THE /startTree ENDPOINT, UNCOMMENT THIS BLOCK
+     /
+
+                    parseTwilioNumber.set("numberSid", "AC21e6f51dd30c088d712931ac16cd3d15");
+                    parseTwilioNumber.set("phoneNumber", "15005550006");
+                    parseTwilioNumber.save();
+
+                    sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
+                        function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
+                            // save OutboundMessage entity
+                            outboundMessage.set("from", twilioNumber.get("phoneNumber"));
+                            outboundMessage.save();
+
+                            // Done with /startTree call !
+                            var logging = text.to + " - " + text.form + " - " + text.body + " - " + err.message;
+                            response.success("API call OK. SMS Status: " + logging);
+                        });
+    /**
+     * AND COMMENT OUT THE FOLLOWING BLOCK
+     **/
+
+
+    /**
+     * THIS IS THE PRODUCTION VERSION OF THE CODE
+     * IT WILL PURCHASE A NEW NUMBER AT TWILIO IF NEEDED.
+     * COMMENT IT OUT IF YOU WANT TO TEST
+     **/
                     // purchase new number at Twilio
                     // then send SMS
                     twilioClient.availablePhoneNumbers("US")
@@ -445,8 +529,12 @@ Parse.Cloud.define("startTree", function(request, response)
 
                         response.success("API Call Error: Could not buy a Number !");
                     });
+    /**
+     * END OF PRODUCTION BLOCK.
+     **/
+
                 }
-                });
+            });
         },
         error: function(error) {
             response.error("Error in Account fetch: " + error);
@@ -480,17 +568,51 @@ Parse.Cloud.define("handleTree", function(request, response)
     discussion.first({
         success: function(feedbackDiscussion)
         {
-            incoming.set("discussionId", feedbackDiscussion.id);
-            incoming.save();
-
-            FeedbackService.delegateService(incoming, feedbackDiscussion,
-                function(err, text, outboundMessage)
+            if (! feedbackDiscussion) {
+                // Customer could not be identified
+                // need to create new TwilioAccount
+                var account = new TwilioAccount();
+                account.set("firstName", "No Name");
+                account.set("phoneNumber", customerNumber);
+                account.save({
+                success:function(twilioAccount)
                 {
-                    if (text && outboundMessage)
-                        response.success("API call OK.");
-                    else
-                        response.error("API call Error: " + err.message);
-                });
+                    // can now save the discussion
+                    var discussion = new FeedbackDiscussion();
+                    discussion.set("accountId", twilioAccount.id);
+                    discussion.set("twilioNumber", twilioNumber);
+                    discussion.set("customerNumber", customerNumber);
+                    discussion.set("state", 0);
+                    discussion.save({
+                    success: function(feedbackDiscussion)
+                    {
+                        incoming.set("discussionId", feedbackDiscussion.id);
+                        incoming.save();
+
+                        FeedbackService.delegateService(incoming, feedbackDiscussion,
+                        function(err, text, outboundMessage)
+                        {
+                            if (text && outboundMessage)
+                                response.success("API call OK.");
+                            else
+                                response.error("API call Error: " + err.message);
+                        });
+                    }}); /* end save discussion */
+                }}); /* end save account */
+            }
+            else {
+                incoming.set("discussionId", feedbackDiscussion.id);
+                incoming.save();
+
+                FeedbackService.delegateService(incoming, feedbackDiscussion,
+                    function(err, text, outboundMessage)
+                    {
+                        if (text && outboundMessage)
+                            response.success("API call OK.");
+                        else
+                            response.error("API call Error: " + err.message);
+                    });
+            }
         },
         error: function(err) {
             response.error("API call Error: " + err.message);
