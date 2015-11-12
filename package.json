@@ -13,7 +13,7 @@
         "bot"
     ],
     "scripts": {
-        "start": "node cloud/main.js"
+        "start": "node cloud/app.js"
     },
     "dependencies": {
         "express": "4.2.x"
