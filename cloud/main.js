@@ -191,6 +191,13 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
                         case 2:
                             return FeedbackService.answerToYesNo(twilioAccount,
                                     incomingMessage, feedbackDiscussion, callback);
+
+                        // No interpretation needed anymore, simply Thank
+                        // the customer
+                        case 3:
+                        case 4:
+                            return FeedbackService.answerThanks(twilioAccount,
+                                    incomingMessage, feedbackDiscussion, callback);
                     }
                 },
                 error: function(err)
@@ -238,6 +245,28 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
                 // waiting until next receive to potentially
                 // interpret a correct Yes/No.
                 return outbound1.send(callback);
+        },
+        answerThanks: function(twilioAccount, incomingMessage, feedbackDiscussion, callback)
+        {
+            var accountId = feedbackDiscussion.get("accountId");
+            var msgText   = incomingMessage.get("body");
+            var outboundType1 = "feedback-first";
+            var outboundType2 = "feedback-second";
+
+            var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
+            outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
+            outbound1.save();
+
+            var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
+            outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
+            outbound2.save();
+
+            // NEXT STATE - Discusion DONE
+            feedbackDiscussion.set("state", 4);
+            feedbackDiscussion.save();
+
+            outbound1.send(function() {});
+            return outbound2.send(callback);
         }
     }
 );
