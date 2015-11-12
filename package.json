@@ -11,7 +11,7 @@
         "cloudcode",
         "callcenter",
         "bot"
-    }
+    },
     "scripts": {
         "start": "node cloud/main.js"
     }
