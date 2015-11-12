@@ -21,6 +21,7 @@ limitations under the License.
  * @author Grégory Saive <greg@evias.be>
  * @license http://www.apache.org/licenses/LICENSE-2.0
 **/
+require('cloud/app.js');
 
 // PROD
 var twilioClient = require('twilio')('AC89bea12cb6782b72bc47f37999953b2f', '89f842387581a640d48a7e4fea362888');
