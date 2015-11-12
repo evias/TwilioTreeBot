@@ -1,1 +1,1 @@
-web: node cloud/app.js
+web: node cloud/main.js
