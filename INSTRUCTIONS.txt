@@ -1,0 +1,24 @@
+
+Please don't forget to change both the Parse App IDs and Tokens and same thing for the Twilio API. Ping me on Skype if you want me to give you the exact source code lines you have to modify and how to do it. Also the Twilio SMS URL must be changed because it redirects to my app at https://twiliotreebot.herokuapp.com?tree  as of now.
+
+
+1) Open cloud/main.js and modify line 26 such that :
+  1a) AC89bea12cb6782b72bc47f37999953b2f is replaced by your Twilio AccountSID
+  1b) 89f842387581a640d48a7e4fea362888 is replaced by your Twilio Account AuthToken
+
+2) Open cloud/main.js and modify line 503 so that the URL reflects your Apps endpoint. (Must be HTTP POST capable)
+
+3) Open public/index.php and see how I initialize the Parse Cloud using PHP and Javascript.
+  3a) The PHP implementation's ParseClient::initialize arguments order is :
+   3a1) Parse Application ID
+   3a2) Parse REST API Key
+   3a3) Parse Master Key
+  3b) The Javascript implementation's Parse.initialize arguments order is :
+   3b1) Parse Application ID
+   3b2) Parse Javascript Key
+
+4) I can of course provide with more informations on how to integrate it in your app.
+   The PHP integration is the HTTP POST that will be called by Twilio when someone Texts
+   One of your Subaccounts.
+   The JS integration is the twilio sub account creation and /startTree call which will
+   trigger the first 2 SMSs to the customer.
