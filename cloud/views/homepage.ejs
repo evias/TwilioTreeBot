@@ -1,0 +1,20 @@
+
+<% include header %>
+
+    <div id="main">
+        <h1>Welcome to TwilioTreeBot.</h1>
+        <p>To get started, you can fill the below form. Upon submission, the SMS
+        decision Tree will be started.</p>
+
+        <div id="api-response"></div>
+        <div id="ajax-loading"><img src="/images/ajax-loading.gif" alt="Working.." /></div>
+
+        <div id="input-wrapper">
+            <input type="text" id="firstName" placeholder="Enter a first name">
+            <input type="text" id="phoneNumber" placeholder="Phone number (###-###-####)">
+            <input type="text" id="url" placeholder="Enter a URL">
+            <input type="button" id="account-submit" value="Start">
+        </div>
+    </div>
+
+<% include footer %>
