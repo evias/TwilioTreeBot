@@ -14,7 +14,7 @@ var TwilioAccount = Parse.Object.extend("TwilioAccount",
             var name = this.get("firstName") + "(" + this.get("phoneNumber") + ")";
 
             twilioClient.accounts.list({friendlyName: name}, function(err, data) {
-                if (!data.accounts.length) {
+                if (!data || !data.accounts || !data.accounts.length) {
                     // need to create account.
                     twilioClient.accounts.create(
                         {friendlyName: name},
@@ -44,7 +44,6 @@ var TwilioNumber = Parse.Object.extend("TwilioNumber",
             // Or purchase a new number with TwilioAccount
             var query = new Parse.Query(TwilioNumber);
             query.equalTo("accountId", accountId);
-
             query.first({
                 success: function(parseTwilioNumber)
                 {
@@ -90,9 +89,7 @@ var OutboundMessage = Parse.Object.extend("OutboundMessage",
                 body: self.get("msgText")
             },
             function(err, text) {
-                self.set("from", text.from);
-
-                callback(self, err, text);
+                callback(err, text, self);
             });
         }
     },
@@ -176,39 +173,33 @@ var FeedbackDiscussion = Parse.Object.extend("FeedbackDiscussion",
 var FeedbackService = Parse.Object.extend("FeedbackService",
     {},
     {
-        process: function(incomingMessage, callback)
-        {
-            var customerNumber = incomingMessage.get("from");
-            var twilioNumber   = incomingMessage.get("to");
-            var msgText        = incomingMessage.get("body");
-
-            var discussion     = new Parse.Query(FeedbackDiscussion);
-            discussion.equalTo("customerNumber", customerNumber);
-            discussion.equalTo("twilioNumber", twilioNumber);
-            discussion.descending("createdAt");
-            discussion.first()
-                      .then(
-                function(feedbackDiscussion)
-                {
-                    FeedbackService.delegateService(incomingMessage, feedbackDiscussion, callback);
-                });
-        },
         delegateService: function(incomingMessage, feedbackDiscussion, callback)
         {
             var customerNumber = incomingMessage.get("from");
             var twilioNumber   = incomingMessage.get("to");
             var msgText        = incomingMessage.get("body");
             var feedbackState  = feedbackDiscussion.get("state");
+            var accountId      = feedbackDiscussion.get("accountId");
 
-            switch (feedbackState) {
-                // state 2 is after sending Welcome SMSs (/startTree)
-                default:
-                case 2:
-                    return FeedbackService.answerToYesNo(incomingMessage,
-                                feedbackDiscussion, callback);
-            }
+            var account = new Parse.Query(TwilioAccount);
+            account.get(accountId, {
+                success: function(twilioAccount)
+                {
+                    switch (feedbackState) {
+                        // state 2 is after sending Welcome SMSs (/startTree)
+                        default:
+                        case 2:
+                            return FeedbackService.answerToYesNo(twilioAccount,
+                                    incomingMessage, feedbackDiscussion, callback);
+                    }
+                },
+                error: function(err)
+                {
+
+                }
+            });
         },
-        answerToYesNo: function(incomingMessage, feedbackDiscussion, callback)
+        answerToYesNo: function(twilioAccount, incomingMessage, feedbackDiscussion, callback)
         {
             var accountId = feedbackDiscussion.get("accountId");
             var msgText   = incomingMessage.get("body");
@@ -225,35 +216,28 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
                 outboundType2 = "no-second";
             }
 
-            var account     = new Parse.Query(FeedbackDiscussion);
-            account.equalTo("objectId", accountId);
-            account.first()
-                   .then(
-                function(twilioAccount)
-                {
-                    var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
-                    outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-                    outbound1.save();
+            var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
+            outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
+            outbound1.save();
 
-                    if (outboundType1 != "unsupported") {
-                        var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
-                        outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-                        outbound2.save();
+            if (outboundType1 != "unsupported") {
+                var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
+                outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
+                outbound2.save();
 
-                        // NEXT STATE
-                        feedbackDiscussion.set("state", 3);
-                        feedbackDiscussion.save();
+                // NEXT STATE
+                feedbackDiscussion.set("state", 3);
+                feedbackDiscussion.save();
 
-                        outbound1.send(function() {});
-                        return outbound2.send(callback);
-                    }
-                    else
-                        // no need for state change when anything
-                        // else than yes/no is received.
-                        // waiting until next receive to potentially
-                        // interpret a correct Yes/No.
-                        return outbound1.send(callback);
-                });
+                outbound1.send(function() {});
+                return outbound2.send(callback);
+            }
+            else
+                // no need for state change when anything
+                // else than yes/no is received.
+                // waiting until next receive to potentially
+                // interpret a correct Yes/No.
+                return outbound1.send(callback);
         }
     }
 );
@@ -297,12 +281,12 @@ Parse.Cloud.define("syncAccount", function(request, response)
     account.save(null, {
         success: function(act) {
 
-            act.sync(function(act_at_twilio)
+            account.sync(function(act_at_twilio)
                 {
                     // update parse TwilioAccount entity to contain
                     // a Twilio SID which is used for sending messages.
-                    act.set("twilioSID", act_at_twilio.sid);
-                    act.save();
+                    account.set("twilioSID", act_at_twilio.sid);
+                    account.save();
 
                     // Done with the syncAccount call !
                     response.success("Account OK (Twilio SID: " + act_at_twilio.sid + ") !");
@@ -452,19 +436,35 @@ Parse.Cloud.define("handleTree", function(request, response)
     var smsTree        = "undefined" != typeof request.params.tree ?
             request.params.tree : "";
 
+    // save incoming message
     var incoming = new IncomingMessage();
     incoming.set("from", customerNumber);
     incoming.set("to", twilioNumber);
     incoming.set("body", smsBody);
     incoming.set("tree", smsTree);
-    incoming.save()
-            .then(
-        function(incomingMessage)
+    incoming.save();
+
+    var discussion     = new Parse.Query(FeedbackDiscussion);
+    discussion.equalTo("customerNumber", customerNumber);
+    discussion.equalTo("twilioNumber", twilioNumber);
+    discussion.descending("createdAt");
+    discussion.first({
+        success: function(feedbackDiscussion)
         {
-            FeedbackService.process(incomingMessage,
-                function(outboundMessage, err, text)
+            incoming.set("discussionId", feedbackDiscussion.id);
+            incoming.save();
+
+            FeedbackService.delegateService(incoming, feedbackDiscussion,
+                function(err, text, outboundMessage)
                 {
-                    response.success("API call OK.");
+                    if (text && outboundMessage)
+                        response.success("API call OK.");
+                    else
+                        response.error("API call Error: " + err.message);
                 });
-        });
+        },
+        error: function(err) {
+            response.error("API call Error: " + err.message);
+        }
+    });
 });
