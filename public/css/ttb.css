@@ -35,3 +35,7 @@ limitations under the License.
 #ajax-loading { display: none; }
 #api-response.success { color: #0f0; }
 #api-response.error { color: #f00; }
+
+#success p, #error p {
+    word-wrap: break-word;
+}

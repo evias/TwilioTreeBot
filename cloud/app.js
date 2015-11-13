@@ -90,6 +90,15 @@ app.get('/', function(request, response)
 });
 
 /**
+ * GET /sendRequest
+ * always REDIRECTS to homepage
+ **/
+app.get('/sendRequest', function(request, response)
+{
+  response.redirect("/");
+});
+
+/**
  * GET /signin
  * describes the signin GET request.
  * this handler will render the login view.
@@ -185,6 +194,199 @@ app.post('/signin', function(request, response)
       response.render('login', {
         "currentUser": false,
         "errorMessage": error.message});
+    }
+  });
+});
+
+/**
+ * POST /signup
+ * describes the signup POST request.
+ * this handler is where we register new
+ * Parse.User entries.
+ **/
+app.post('/signup', function(request, response)
+{
+  var username = request.body.username;
+  var email    = request.body.username;
+  var password = request.body.password;
+  var office   = request.body.office;
+  var area     = request.body.area;
+
+  var currentUser = new Parse.User();
+  currentUser.set("username", username);
+  currentUser.set("email", email);
+  currentUser.set("password", password);
+  currentUser.set("officeName", office);
+  currentUser.set("areaCode", area);
+
+  currentUser.signUp(null, {
+    success: function(currentUser) {
+      // user registration was successfully done
+      // we can now safely save the session token
+      // and redirect the user to the homepage
+
+      request.session.loggedState  = true;
+      request.session.sessionToken = currentUser.getSessionToken();
+
+      response.redirect("/");
+    },
+    error: function(currentUser, error) {
+      request.session = null;
+
+      response.render('signup', {
+        "currentUser": false,
+        "errorMessage": error.message});
+    }
+  });
+});
+
+/**
+ * POST /sendRequest
+ * describes the homepage GET request.
+ * this handler will render the authentication
+ * template if no session is available or render
+ * the homepage template for logged users.
+ **/
+app.post('/sendRequest', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser)
+    // no session available => back to login
+    response.redirect("/signin");
+  else {
+    // valid /sendRequest POST request, session is available.
+    var firstName   = request.body.firstName;
+    var phoneNumber = request.body.phoneNumber;
+    var url         = request.body.url;
+    var errors      = [];
+
+    // simple input presence validation
+    if (! firstName || ! firstName.length)
+      errors.push("The customer name may not be empty.");
+
+    if (! phoneNumber || ! phoneNumber.length)
+      errors.push("The customer phone number may not be empty.");
+
+    if (! url || ! url.length)
+      errors.push("The URL may not be empty.");
+
+    if (errors.length)
+      // refresh with error messages displayed
+      response.render("homepage", {
+        "currentUser": currentUser,
+        "errorMessage": errors.join(" ", errors),
+        "successMessage": false
+      });
+    else {
+      // VALID form input, we can now initiate the
+      // Feedback Discussion, etc.
+
+      // make sure next time currentUser.url is set.
+      currentUser.set("defaultURL", url);
+      currentUser.save();
+
+      Parse.Cloud.run("syncAccount", {
+        userId: currentUser.id,
+        firstName: firstName,
+        phoneNumber: phoneNumber,
+        url: url,
+        userArea: currentUser.get("areaCode")
+      }, {
+        success: function(cloudResponse)
+        {
+          // get TwilioAccount entry from response
+          // then initiate /startTree API request.
+          var twilioAccount = cloudResponse.twilioAccount;
+          Parse.Cloud.run("startTree", {
+            accountId: twilioAccount.id,
+            userAreaCode: currentUser.get("areaCode")
+          },
+          {
+            success: function(cloudResponse) {
+              if (cloudResponse.errorMessage)
+                response.render("homepage", {
+                  "currentUser": currentUser,
+                  "errorMessage": cloudResponse.errorMessage,
+                  "successMessage": false
+                });
+              else {
+                response.render("homepage", {
+                  "currentUser": currentUser,
+                  "errorMessage": false,
+                  "successMessage": "Congratulations ! You have sent a Feedback "
+                                  + "Request to your customer '" + twilioAccount.get("firstname") + "'."
+                });
+              }
+            },
+            error: function(cloudResponse) {
+              response.render("homepage", {
+                "currentUser": currentUser,
+                "errorMessage": cloudResponse,
+                "successMessage": false
+              });
+            }
+          }); /* end Parse.Cloud.run("startTree") */
+        },
+        error: function(cloudResponse)
+        {
+          // error happened on /syncAccount, we could not sync
+          // the input data with a new TwilioAccount entry.
+          // should never happen.
+          response.render("homepage", {
+            "currentUser": currentUser,
+            "errorMessage": cloudResponse,
+            "successMessage": false
+          });
+        }
+      }); /* end Parse.Cloud.run("syncAccount") */
+    } /* end if (errors.length) block */
+  } /* end if (!currentUser) block */
+});
+
+app.post('/handleFeedback', function(request, response)
+{
+  var tree = request.query.tree;
+  var from = request.body.From;
+  var to   = request.body.To;
+  var body = request.body.Body;
+
+  if (! tree || ! from || ! to || ! body) {
+    console.log("Missing mandatory Property for /handleFeedback.");
+    response.error({"result": false, "errorMessage": "Missing mandatory Property for /handleFeedback."});
+  }
+
+  Parse.Cloud.run("handleTree", {
+    From: from,
+    To: to,
+    Body: body,
+    tree: tree
+  }, {
+    success: function(cloudResponse)
+    {
+      if (cloudResponse && !cloudResponse.result)
+        response.send({
+          "result": false,
+          "errorMessage": "/handleTree Error: " + cloudResponse.errorMessage});
+      else if (cloudResponse && cloudResponse.result)
+        response.send({
+          "result": true,
+          "errorMessage": false});
+      else
+        response.send({
+          "result": false,
+          "errorMessage": "Unknown /handleFeedback Error Happened."});
+    },
+    error: function(cloudResponse)
+    {
+      if (cloudResponse && cloudResponse.errorMessage)
+        response.send({
+          "result": false,
+          "errorMessage": "/handleTree Error: " + cloudResponse.errorMessage});
+      else {
+        response.send({
+          "result": false,
+          "errorMessage": "/handleTree Error: " + cloudResponse});
+      }
     }
   });
 });
