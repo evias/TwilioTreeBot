@@ -22,25 +22,16 @@ limitations under the License.
  * @link https://twiliotreebot.parseapp.com
 **/
 
-express = require('express');
-app = express();
-
-app.set('views', 'cloud/views');
-app.set('view engine', 'ejs');
-app.use(express.bodyParser());
-
-/**
- * GET /
- * describes the homepage GET request.
- * this handler will render the authentication
- * template if no session is available or render
- * the homepage template for logged users.
- **/
-app.get('/', function(req, res)
-{
-  // XXX add referer
-  res.render('signup', {});
-});
-
-// Attach the Express app to Cloud Code.
-app.listen();
+#input-wrapper {
+  padding-bottom:15px;
+}
+#account-submit {
+  background: #73D175;
+  color: white;
+  box-shadow:none;
+  border-color: #599E5A;
+}
+#api-response { display: none; }
+#ajax-loading { display: none; }
+#api-response.success { color: #0f0; }
+#api-response.error { color: #f00; }

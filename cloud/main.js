@@ -336,9 +336,9 @@ Parse.Object.registerSubclass("IncomingMessage", IncomingMessage);
 Parse.Object.registerSubclass("FeedbackDiscussion", FeedbackDiscussion);
 Parse.Object.registerSubclass("FeedbackService", FeedbackService);
 
-Parse.Cloud.define("hello", function(request, response)
+Parse.Cloud.define("ping", function(request, response)
 {
-  response.success("Hello this is TwilioTreeBot !");
+  response.success({ping: "pong", timestamp: new Date()});
 });
 
 Parse.Cloud.define("syncAccount", function(request, response)
@@ -456,35 +456,6 @@ Parse.Cloud.define("startTree", function(request, response)
             });
         }
         else {
-
-/**
-* TO TEST THE /startTree ENDPOINT, UNCOMMENT THIS BLOCK
-/
-
-          parseTwilioNumber.set("numberSid", "AC21e6f51dd30c088d712931ac16cd3d15");
-          parseTwilioNumber.set("phoneNumber", "15005550006");
-          parseTwilioNumber.save();
-
-          sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
-            function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
-              // save OutboundMessage entity
-              outboundMessage.set("from", twilioNumber.get("phoneNumber"));
-              outboundMessage.save();
-
-              // Done with /startTree call !
-              var logging = text.to + " - " + text.form + " - " + text.body + " - " + err.message;
-              response.success("API call OK. SMS Status: " + logging);
-            });
-/**
-* AND COMMENT OUT THE FOLLOWING BLOCK
-**/
-
-
-/**
-* THIS IS THE PRODUCTION VERSION OF THE CODE
-* IT WILL PURCHASE A NEW NUMBER AT TWILIO IF NEEDED.
-* COMMENT IT OUT IF YOU WANT TO TEST
-**/
             // purchase new number at Twilio
             // then send SMS
           twilioClient.availablePhoneNumbers("US")
@@ -527,9 +498,105 @@ Parse.Cloud.define("startTree", function(request, response)
 
             response.success("API Call Error: Could not buy a Number !");
           });
-/**
-* END OF PRODUCTION BLOCK.
-**/
+        } /* end if needPurchase block */
+      });
+    },
+    error: function(error) {
+      response.error("Error in Account fetch: " + error);
+    }
+  });
+});
+
+
+Parse.Cloud.define("startTreeTest", function(request, response)
+{
+  var accountId = "undefined" != typeof request.params.accountId ?
+              request.params.accountId : "";
+
+  var sendTwilioWelcomeSMS = function(outboundMessage, twilioNumber, twilioAccount, callback)
+    {
+      // We are now starting the Feedback discussion
+      // between twilioAccount and twilioNumber.
+      var discussion = new FeedbackDiscussion();
+      discussion.set("numberId", twilioNumber.id);
+      discussion.set("accountId", twilioAccount.id);
+      discussion.set("twilioNumber", twilioNumber.get("phoneNumber"));
+      discussion.set("customerNumber", twilioAccount.get("phoneNumber"));
+      discussion.set("state", 1);
+      discussion.save();
+
+      // Send first SMS (outboundMessage parameter)
+      twilioClient.accounts(twilioAccount.get("twilioSID"))
+                  .sms.messages.create(
+      {
+        to: twilioAccount.get("phoneNumber"),
+        from: twilioNumber.get("phoneNumber"),
+        body: outboundMessage.get("msgText")
+      },
+      function(err, text) {
+        // Send second SMS
+        var secondMessage = OutboundMessage.Factory(twilioAccount, "second");
+        twilioClient.accounts(twilioAccount.get("twilioSID"))
+                .sms.messages.create(
+        {
+          to: twilioAccount.get("phoneNumber"),
+          from: twilioNumber.get("phoneNumber"),
+          body: secondMessage.get("msgText")
+        },
+        function(err, text) {
+          secondMessage.set("from", twilioNumber.get("phoneNumber"));
+          secondMessage.save();
+
+          discussion.set("state", 2);
+          discussion.save();
+
+          callback(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text);
+        });
+      });
+    }
+
+  // when the entity is loaded we are up to sending
+  // the first SMS of the decision tree. (and start a discussion)
+  var query = new Parse.Query(TwilioAccount);
+  query.get(accountId, {
+    success: function(parseTwilioAccount) {
+      console.log("found Account: #" + parseTwilioAccount.id);
+
+      var number   = TwilioNumber.Factory(parseTwilioAccount);
+      var outbound = OutboundMessage.Factory(parseTwilioAccount, "first");
+
+      // sync number with twilio sub account outgoingCallerIds
+      // then send SMS (and update outbound message entity)
+      number.sync(function(parseTwilioNumber, needPurchase)
+      {
+        if (!needPurchase) {
+          sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
+            function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
+              // save OutboundMessage entity
+              outboundMessage.set("from", twilioNumber.get("phoneNumber"));
+              outboundMessage.save();
+
+              // Done with /startTree call !
+              var logging = text.to + " - " + text.form + " - " + text.body + " - " + err.message;
+              response.success("API call OK. SMS Status: " + logging);
+            });
+        }
+        else {
+
+          parseTwilioNumber.set("numberSid", "AC7fc66d496535a8ff9aae2aa30cc92246");
+          parseTwilioNumber.set("phoneNumber", "15005550006");
+          parseTwilioNumber.save();
+
+          sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
+            function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
+              // save OutboundMessage entity
+              outboundMessage.set("from", twilioNumber.get("phoneNumber"));
+              outboundMessage.save();
+
+              // Done with /startTree call !
+              var logging = text.to + " - " + text.form + " - " + text.body + " - " + err.message;
+              response.success("API call OK. SMS Status: " + logging);
+            });
 
         } /* end if needPurchase block */
       });
@@ -539,6 +606,7 @@ Parse.Cloud.define("startTree", function(request, response)
     }
   });
 });
+
 
 Parse.Cloud.define("handleTree", function(request, response)
 {
