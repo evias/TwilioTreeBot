@@ -28,6 +28,44 @@ app = express();
 app.set('views', 'cloud/views');
 app.set('view engine', 'ejs');
 app.use(express.bodyParser());
+app.use(express.cookieParser());
+app.use(express.cookieSession({
+  name: "TwilioTreeBot",
+  keys: [
+    "ecd4f35e7eac39353dc36aadbb991e661825e995",
+    "172fa97f8f3cffbbac9d790f8419172b0d3f8bd0",
+    "7650561555d998d248f4f4a6633062ed1e13beea",
+    "ed72d3cbbc69d59476629bd23e1ffcb669d461b8",
+    "d5103d95852958ca1132fe8dbf453790f2c2f828"
+  ],
+  secret: "7fb8f76b280b5f2b26d7d77738c00590c7e2e839"}));
+
+/*******************************************************************************
+ * PRE-HTTP requests handlers for TwilioTreeBot
+ * These functions act as Plugins to the HTTP handlers.
+ * @link https://twiliotreebot.parseapp.com
+ *******************************************************************************/
+
+app.use(function(req, res, next)
+{
+    Parse.User
+      .become(req.session.sessionToken ? req.session.sessionToken : "invalidSessionToken")
+      .then(
+        function(currentUser) {
+          // currentUser now contains the BROWSER's logged in user.
+          // Parse.User.current() for `req` will return the browsers user as well.
+          next();
+        },
+        function(error) {
+          // not logged in => will result in redirection to /signin
+          next();
+        });
+});
+
+/*******************************************************************************
+ * HTTP GET requests handlers for TwilioTreeBot
+ * @link https://twiliotreebot.parseapp.com
+ *******************************************************************************/
 
 /**
  * GET /
@@ -39,10 +77,16 @@ app.use(express.bodyParser());
 app.get('/', function(request, response)
 {
   var currentUser = Parse.User.current();
-  if (currentUser)
-    response.render('homepage', {"currentUser": currentUser});
-  else
+  if (! currentUser) {
     response.redirect("/signin");
+  }
+  else {
+    response.render('homepage', {
+      "currentUser": currentUser,
+      "errorMessage": false,
+      "successMessage": false
+    });
+  }
 });
 
 /**
@@ -55,8 +99,11 @@ app.get('/signin', function(request, response)
   var currentUser = Parse.User.current();
   if (currentUser)
     response.redirect("/");
-
-  response.render('login', {"currentUser": false});
+  else {
+    response.render('login', {
+      "currentUser": false,
+      "errorMessage": false});
+  }
 });
 
 /**
@@ -69,8 +116,24 @@ app.get('/signup', function(request, response)
   var currentUser = Parse.User.current();
   if (currentUser)
     response.redirect("/");
+  else {
+    response.render('signup', {
+      "currentUser": false,
+      "errorMessage": false});
+  }
+});
 
-  response.render('signup', {"currentUser": false});
+/**
+ * GET /signout
+ * describes the signout GET request.
+ * this handler will redirect to the /signin
+ **/
+app.get('/signout', function(request, response)
+{
+  Parse.User.logOut();
+  request.session = null;
+
+  response.redirect("/signin");
 });
 
 /**
@@ -81,10 +144,49 @@ app.get('/signup', function(request, response)
 app.get('/terms-and-conditions', function(request, response)
 {
   var currentUser = Parse.User.current();
-  if (!currentUser)
+  if (! currentUser)
     currentUser = false;
 
   response.render('terms', {"currentUser": currentUser});
+});
+
+
+/*******************************************************************************
+ * HTTP POST requests handlers for TwilioTreeBot
+ * @link https://twiliotreebot.parseapp.com
+ *******************************************************************************/
+
+/**
+ * POST /signin
+ * describes the signin POST request.
+ * this handler is where we authenticate
+ * a Parse.User session using the provided
+ * signin form data.
+ **/
+app.post('/signin', function(request, response)
+{
+  var username = request.body.username;
+  var password = request.body.password;
+
+  currentUser  = Parse.User.logIn(username, password, {
+    success: function(currentUser) {
+      // user authentication credentials are OK, we can
+      // now safely save the session token for this user
+      // and finally redirect to the homepage.
+
+      request.session.loggedState  = true;
+      request.session.sessionToken = currentUser.getSessionToken();
+
+      response.redirect("/");
+    },
+    error: function(currentUser, error) {
+      request.session = null;
+
+      response.render('login', {
+        "currentUser": false,
+        "errorMessage": error.message});
+    }
+  });
 });
 
 // Attach the Express app to Cloud Code.

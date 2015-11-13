@@ -6,8 +6,10 @@
     <link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
     <link rel="icon" type="image/png" href="/images/favicon.png" />
     <link rel="shortcut icon" href="/images/favicon.ico" type="image/x-icon" />
+    <meta charset="utf-8" />
     <meta name="description" content="TwilioTreeBot App">
     <meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;" />
+    <meta name="author" content="Grégory Saive (http://evias.be)" />
 
     <link href="css/style.css" rel="stylesheet" />
     <link href="css/ttb.css" rel="stylesheet" />
@@ -44,7 +46,7 @@
 
               <% if (currentUser) { %>
 
-              <h3>Hello <%= currentUser.username %>, welcome to your
+              <h3>Hello <%= currentUser.get("username") %>, welcome to your
               TwilioTreeBot account. Click on the Menu on top to Browse
               available Modules</h3>
 

@@ -10,16 +10,21 @@
             </div>
             <div class="wide">
                 <div class="form-box">
+                    <% if (successMessage) { %>
                     <div id="success">
                         <div class="green align-center">
                             <p>Your Feedback Request was sent successfully!</p>
                         </div>
                     </div>
+                    <% } %>
+                    <% if (errorMessage) { %>
                     <div id="error">
                         <div>
                             <p>Something went wrong. Please refresh and try again.</p>
                         </div>
                     </div>
+                    <% } %>
+
                     <form id="trial" name="trial" method="post" novalidate="novalidate">
 
                         <div id="api-response"></div>

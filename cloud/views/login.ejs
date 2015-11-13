@@ -10,11 +10,13 @@
             </div>
             <div class="wide">
                 <div class="form-box">
+                    <% if (errorMessage) { %>
                     <div id="error">
                         <div>
-                            <p>Something went wrong. Please refresh and try again.</p>
+                            <p>Something went wrong. Please refresh and try again. (Error: <b><%= errorMessage %></b>)</p>
                         </div>
                     </div>
+                    <% } %>
                     <form id="login" name="login" method="post" novalidate="novalidate">
                         <div class="form-row">
                             <label>Email Address <span class="required">*</span></label>
