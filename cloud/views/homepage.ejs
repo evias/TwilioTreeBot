@@ -1,20 +1,64 @@
 
-<% include header %>
+<%- include header -%>
 
-    <div id="main">
-        <h1>Welcome to TwilioTreeBot.</h1>
-        <p>To get started, you can fill the below form. Upon submission, the SMS
-        decision Tree will be started.</p>
+    <div class="right">
+        <section>
+            <div class="title align-center">
+                <h2>Send Feedback Requests</h2>
+                <p>This page allows you to send feedback requests to your
+                   customers.</p>
+            </div>
+            <div class="wide">
+                <div class="form-box">
+                    <div id="success">
+                        <div class="green align-center">
+                            <p>Your Feedback Request was sent successfully!</p>
+                        </div>
+                    </div>
+                    <div id="error">
+                        <div>
+                            <p>Something went wrong. Please refresh and try again.</p>
+                        </div>
+                    </div>
+                    <form id="trial" name="trial" method="post" novalidate="novalidate">
 
-        <div id="api-response"></div>
-        <div id="ajax-loading"><img src="/images/ajax-loading.gif" alt="Working.." /></div>
+                        <div id="api-response"></div>
+                        <div id="ajax-loading"><img src="/images/ajax-loading.gif" alt="Working.." /></div>
 
-        <div id="input-wrapper">
-            <input type="text" id="firstName" placeholder="Enter a first name">
-            <input type="text" id="phoneNumber" placeholder="Phone number (###-###-####)">
-            <input type="text" id="url" placeholder="Enter a URL">
-            <input type="button" id="account-submit" value="Start">
-        </div>
+                        <div class="form-row">
+                            <label>Customer Name<span class="required">*</span></label>
+                            <input type="text" id="firstName" name="firstName"
+                                   placeholder="Enter a first name" size="30"
+                                   required="" class="text login_input">
+                        </div>
+
+                        <div class="form-row">
+                            <label>Phone Number<span class="required">*</span></label>
+                            <input type="text" id="phoneNumber" name="phoneNumber"
+                                   placeholder="Phone number (###-###-####)" size="30"
+                                   required="" class="text login_input">
+                        </div>
+
+                        <div class="form-row">
+                            <label>URL<span class="required">*</span></label>
+                            <input type="text" id="url" name="url"
+                                   placeholder="http://www.example.com" size="30"
+                                   required="" class="text login_input">
+                        </div>
+
+                        <div class="form-row">
+                            <input id="account-submit" type="submit" name="submit" value="Send feedback request!" class="btn btn-wide">
+                        </div>
+
+                        <div class="align-center">We take privacy very seriously.</div>
+                    </form>
+                </div>
+                <div class="shadow"></div>
+                <div class="meta align-center">
+                    <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+                </div>
+            </div>
+        </section>
     </div>
 
-<% include footer %>
+<%- include footer -%>

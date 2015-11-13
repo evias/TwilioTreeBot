@@ -24,12 +24,34 @@
           <div class="clearfix"></div>
           <h2>Navigation</h2>
           <ul>
-            <li><a href="home-01.html">Home</a></li>
-            <li><a href="home-02.html">Trial Signup</a></li>
-            <li><a href="home-03.html">Subscribe</a></li>
-            <li><a href="home-04.html">Phone Demo</a></li>
-            <li><a href="home-05.html">Terms &amp; Conditions</a></li>
+            <li><a href="/">Home</a></li>
+            <li><a href="/signup">Trial Signup</a></li>
+            <li><a href="/terms-and-conditions">Terms &amp; Conditions</a></li>
           </ul>
           <div class="clearfix"></div>
         </div>
       </nav>
+
+      <div class="left">
+          <h2 class="menulink hamburger"><a href="#">Menu</a></h2>
+          <section>
+              <h1 class="logo"><a href="/"><img src="/images/logo.png" alt="TwilioTreeBot" /></a></h1>
+
+              <% if (currentUser) { %>
+
+              <h3>Hello <%= currentUser.username %>, welcome to your
+              TwilioTreeBot account. Click on the Menu on top to Browse
+              available Modules</h3>
+
+              <% } else { %>
+
+              <h3>Welcome to TwilioTreeBot. Go ahead and
+              <a href="/signin" class="btn">Login</a>
+              or <a href="/signup" class="btn">Signup</a>
+              to send Feedback Requests <b>today</b> and let TwilioTreeBot handle
+              Feedback Discussion.</h3>
+
+              <% } %>
+
+          </section>
+      </div>

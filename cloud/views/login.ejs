@@ -1,0 +1,40 @@
+
+<%- include header -%>
+
+    <div class="right">
+        <section>
+            <div class="title align-center">
+                <h2>Login</h2>
+                <p>Login with your username and password.</p>
+                <p>You don't have an Account ? <a href="/signup" class="btn">Signup now!</a></p>
+            </div>
+            <div class="wide">
+                <div class="form-box">
+                    <div id="error">
+                        <div>
+                            <p>Something went wrong. Please refresh and try again.</p>
+                        </div>
+                    </div>
+                    <form id="login" name="login" method="post" novalidate="novalidate">
+                        <div class="form-row">
+                            <label>Email Address <span class="required">*</span></label>
+                            <input type="text" name="username" id="username" size="30" value="" required="" class="text login_input">
+                        </div>
+                        <div class="form-row">
+                            <label>Password <span class="required">*</span></label>
+                            <input type="password" name="password" id="password" size="30" value="" class="text login_input">
+                        </div>
+                        <div class="form-row">
+                            <input id="submit" type="submit" name="submit" value="Login" class="btn btn-wide">
+                        </div>
+                    </form>
+                </div>
+                <div class="shadow"></div>
+                <div class="meta align-center">
+                    <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+<%- include footer -%>

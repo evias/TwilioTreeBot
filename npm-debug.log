@@ -1,0 +1,187 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/usr/local/bin/npm',
+1 verbose cli   'install',
+1 verbose cli   'parse-develop',
+1 verbose cli   '-g' ]
+2 info using npm@2.14.7
+3 info using node@v4.2.1
+4 verbose install initial load of /usr/local/lib/package.json
+5 verbose readDependencies loading dependencies from /usr/local/lib/package.json
+6 silly cache add args [ 'parse-develop', null ]
+7 verbose cache add spec parse-develop
+8 silly cache add parsed spec Result {
+8 silly cache add   raw: 'parse-develop',
+8 silly cache add   scope: null,
+8 silly cache add   name: 'parse-develop',
+8 silly cache add   rawSpec: '',
+8 silly cache add   spec: '*',
+8 silly cache add   type: 'range' }
+9 silly addNamed parse-develop@*
+10 verbose addNamed "*" is a valid semver range for parse-develop
+11 silly addNameRange { name: 'parse-develop', range: '*', hasData: false }
+12 silly mapToRegistry name parse-develop
+13 silly mapToRegistry using default registry
+14 silly mapToRegistry registry https://registry.npmjs.org/
+15 silly mapToRegistry uri https://registry.npmjs.org/parse-develop
+16 verbose addNameRange registry:https://registry.npmjs.org/parse-develop not in flight; fetching
+17 verbose request uri https://registry.npmjs.org/parse-develop
+18 verbose request no auth needed
+19 info attempt registry request try #1 at 4:10:12 AM
+20 verbose request id 4d705a481b36562c
+21 http request GET https://registry.npmjs.org/parse-develop
+22 http 200 https://registry.npmjs.org/parse-develop
+23 verbose headers { server: 'CouchDB/1.5.0 (Erlang OTP/R16B03)',
+23 verbose headers   etag: '"6NDHCHG5DC3TJ16HYHRW52R8Q"',
+23 verbose headers   'content-type': 'application/json',
+23 verbose headers   'cache-control': 'max-age=60',
+23 verbose headers   'content-length': '16419',
+23 verbose headers   'accept-ranges': 'bytes',
+23 verbose headers   date: 'Fri, 13 Nov 2015 03:10:13 GMT',
+23 verbose headers   via: '1.1 varnish',
+23 verbose headers   age: '0',
+23 verbose headers   connection: 'keep-alive',
+23 verbose headers   'x-served-by': 'cache-ams4131-AMS',
+23 verbose headers   'x-cache': 'MISS',
+23 verbose headers   'x-cache-hits': '0',
+23 verbose headers   'x-timer': 'S1447384212.974507,VS0,VE197',
+23 verbose headers   vary: 'Accept' }
+24 silly get cb [ 200,
+24 silly get   { server: 'CouchDB/1.5.0 (Erlang OTP/R16B03)',
+24 silly get     etag: '"6NDHCHG5DC3TJ16HYHRW52R8Q"',
+24 silly get     'content-type': 'application/json',
+24 silly get     'cache-control': 'max-age=60',
+24 silly get     'content-length': '16419',
+24 silly get     'accept-ranges': 'bytes',
+24 silly get     date: 'Fri, 13 Nov 2015 03:10:13 GMT',
+24 silly get     via: '1.1 varnish',
+24 silly get     age: '0',
+24 silly get     connection: 'keep-alive',
+24 silly get     'x-served-by': 'cache-ams4131-AMS',
+24 silly get     'x-cache': 'MISS',
+24 silly get     'x-cache-hits': '0',
+24 silly get     'x-timer': 'S1447384212.974507,VS0,VE197',
+24 silly get     vary: 'Accept' } ]
+25 verbose get saving parse-develop to /home/greg/.npm/registry.npmjs.org/parse-develop/.cache.json
+26 silly addNameRange number 2 { name: 'parse-develop', range: '*', hasData: true }
+27 silly addNameRange versions [ 'parse-develop',
+27 silly addNameRange   [ '0.0.51', '0.0.52', '0.0.53', '0.0.54', '0.0.55', '0.0.5-6.1' ] ]
+28 silly addNamed parse-develop@0.0.55
+29 verbose addNamed "0.0.55" is a plain semver version for parse-develop
+30 silly mapToRegistry name parse-develop
+31 silly mapToRegistry using default registry
+32 silly mapToRegistry registry https://registry.npmjs.org/
+33 silly mapToRegistry uri https://registry.npmjs.org/parse-develop
+34 verbose addRemoteTarball https://registry.npmjs.org/parse-develop/-/parse-develop-0.0.55.tgz not in flight; adding
+35 verbose addRemoteTarball [ 'https://registry.npmjs.org/parse-develop/-/parse-develop-0.0.55.tgz',
+35 verbose addRemoteTarball   'd269fd926041025971eed3dfa751aadb70b5fe55' ]
+36 info retry fetch attempt 1 at 4:10:13 AM
+37 info attempt registry request try #1 at 4:10:13 AM
+38 http fetch GET https://registry.npmjs.org/parse-develop/-/parse-develop-0.0.55.tgz
+39 http fetch 200 https://registry.npmjs.org/parse-develop/-/parse-develop-0.0.55.tgz
+40 silly fetchAndShaCheck shasum d269fd926041025971eed3dfa751aadb70b5fe55
+41 verbose addTmpTarball /tmp/npm-1152-ddb0f02f/registry.npmjs.org/parse-develop/-/parse-develop-0.0.55.tgz not in flight; adding
+42 verbose addTmpTarball already have metadata; skipping unpack for parse-develop@0.0.55
+43 silly cache afterAdd parse-develop@0.0.55
+44 verbose afterAdd /home/greg/.npm/parse-develop/0.0.55/package/package.json not in flight; writing
+45 verbose afterAdd /home/greg/.npm/parse-develop/0.0.55/package/package.json written
+46 silly install resolved [ { name: 'parse-develop',
+46 silly install resolved     version: '0.0.55',
+46 silly install resolved     description: 'A Parse Cloud local dev environment',
+46 silly install resolved     main: 'index.js',
+46 silly install resolved     preferGlobal: 'true',
+46 silly install resolved     dependencies:
+46 silly install resolved      { 'forever-monitor': '~1.2.3',
+46 silly install resolved        rc: '~0.4.0',
+46 silly install resolved        'parse-cloud': '~0.0.3',
+46 silly install resolved        'parse-express-cookie-session': '~0.0.3',
+46 silly install resolved        'parse-express-https-redirect': '~0.0.1',
+46 silly install resolved        'parse-express-raw-body': '~0.0.1',
+46 silly install resolved        'parse-image': '~0.0.4',
+46 silly install resolved        express: 'git://github.com/flovilmart/express#3.1.0-parse',
+46 silly install resolved        ejs: '~0.8.3',
+46 silly install resolved        jade: '~0.28.2',
+46 silly install resolved        underscore: '~1.4.2',
+46 silly install resolved        moment: '~1.7.2',
+46 silly install resolved        'applinks-metatag': '~0.0.0',
+46 silly install resolved        mailgun: 'git://github.com/flovilmart/parse-mailgun#0.0.1-parse',
+46 silly install resolved        mandrill: 'git://github.com/flovilmart/parse-mandrill#0.0.1-parse',
+46 silly install resolved        sendgrid: 'git://github.com/flovilmart/parse-sendgrid#0.0.1-parse',
+46 silly install resolved        stripe: 'git://github.com/flovilmart/parse-stripe#2.5.0-parse',
+46 silly install resolved        twilio: '~1.6.0' },
+46 silly install resolved     devDependencies: {},
+46 silly install resolved     scripts: { test: 'echo "Error: no test specified" && exit 1' },
+46 silly install resolved     repository:
+46 silly install resolved      { type: 'git',
+46 silly install resolved        url: 'git@github.com:flovilmart/parse-develop.git' },
+46 silly install resolved     keywords: [ 'parse', 'cloud' ],
+46 silly install resolved     bin:
+46 silly install resolved      { 'parse-develop': './parse-develop',
+46 silly install resolved        parsedev: './parse-develop' },
+46 silly install resolved     author: { name: 'Florent Vilmart' },
+46 silly install resolved     license: 'BSD',
+46 silly install resolved     bugs: { url: 'https://github.com/flovilmart/parse-develop/issues' },
+46 silly install resolved     gitHead: '12664c9c4fe25b5e43de50d6a7b037dd23932795',
+46 silly install resolved     homepage: 'https://github.com/flovilmart/parse-develop',
+46 silly install resolved     _id: 'parse-develop@0.0.55',
+46 silly install resolved     _shasum: 'd269fd926041025971eed3dfa751aadb70b5fe55',
+46 silly install resolved     _from: 'parse-develop@*',
+46 silly install resolved     _npmVersion: '1.4.16',
+46 silly install resolved     _npmUser: { name: 'flovilmart', email: 'flovilmart@icloud.com' },
+46 silly install resolved     maintainers: [ [Object] ],
+46 silly install resolved     dist:
+46 silly install resolved      { shasum: 'd269fd926041025971eed3dfa751aadb70b5fe55',
+46 silly install resolved        tarball: 'http://registry.npmjs.org/parse-develop/-/parse-develop-0.0.55.tgz' },
+46 silly install resolved     directories: {},
+46 silly install resolved     _resolved: 'https://registry.npmjs.org/parse-develop/-/parse-develop-0.0.55.tgz' } ]
+47 info install parse-develop@0.0.55 into /usr/local/lib
+48 info installOne parse-develop@0.0.55
+49 verbose installOne of parse-develop to /usr/local/lib not in flight; installing
+50 verbose lock using /home/greg/.npm/_locks/parse-develop-fb8f2222d9031c42.lock for /usr/local/lib/node_modules/parse-develop
+51 silly install write writing parse-develop 0.0.55 to /usr/local/lib/node_modules/parse-develop
+52 verbose unbuild lib/node_modules/parse-develop
+53 silly gentlyRm /usr/local/lib/node_modules/parse-develop is being purged from base /usr/local
+54 verbose gentlyRm don't care about contents; nuking /usr/local/lib/node_modules/parse-develop
+55 verbose tar unpack /home/greg/.npm/parse-develop/0.0.55/package.tgz
+56 verbose tar unpacking to /usr/local/lib/node_modules/parse-develop
+57 silly gentlyRm /usr/local/lib/node_modules/parse-develop is being purged
+58 verbose gentlyRm don't care about contents; nuking /usr/local/lib/node_modules/parse-develop
+59 silly gunzTarPerm modes [ '775', '664' ]
+60 error tar.unpack untar error /home/greg/.npm/parse-develop/0.0.55/package.tgz
+61 verbose unlock done using /home/greg/.npm/_locks/parse-develop-fb8f2222d9031c42.lock for /usr/local/lib/node_modules/parse-develop
+62 verbose fstream_path /usr/local/lib/node_modules/parse-develop
+63 verbose fstream_type Directory
+64 verbose fstream_class DirWriter
+65 verbose stack Error: EACCES: permission denied, mkdir '/usr/local/lib/node_modules/parse-develop'
+65 verbose stack     at Error (native)
+66 verbose fstream_stack /usr/local/lib/node_modules/npm/node_modules/fstream/lib/dir-writer.js:35:25
+66 verbose fstream_stack /usr/local/lib/node_modules/npm/node_modules/mkdirp/index.js:47:53
+66 verbose fstream_stack FSReqWrap.oncomplete (fs.js:82:15)
+67 verbose cwd /home/greg/Sites/evias-opensource/TwilioTreeBot
+68 error Linux 4.2.0-18-generic
+69 error argv "/usr/local/bin/node" "/usr/local/bin/npm" "install" "parse-develop" "-g"
+70 error node v4.2.1
+71 error npm  v2.14.7
+72 error path /usr/local/lib/node_modules/parse-develop
+73 error code EACCES
+74 error errno -13
+75 error syscall mkdir
+76 error Error: EACCES: permission denied, mkdir '/usr/local/lib/node_modules/parse-develop'
+76 error     at Error (native)
+76 error  { [Error: EACCES: permission denied, mkdir '/usr/local/lib/node_modules/parse-develop']
+76 error   errno: -13,
+76 error   code: 'EACCES',
+76 error   syscall: 'mkdir',
+76 error   path: '/usr/local/lib/node_modules/parse-develop',
+76 error   fstream_type: 'Directory',
+76 error   fstream_path: '/usr/local/lib/node_modules/parse-develop',
+76 error   fstream_class: 'DirWriter',
+76 error   fstream_stack:
+76 error    [ '/usr/local/lib/node_modules/npm/node_modules/fstream/lib/dir-writer.js:35:25',
+76 error      '/usr/local/lib/node_modules/npm/node_modules/mkdirp/index.js:47:53',
+76 error      'FSReqWrap.oncomplete (fs.js:82:15)' ] }
+77 error Please try running this command again as root/Administrator.
+78 verbose exit [ -13, true ]
+79 verbose unbuild lib/node_modules/parse-develop
+80 silly gentlyRm /usr/local/lib/node_modules/parse-develop is being purged from base /usr/local
+81 verbose gentlyRm don't care about contents; nuking /usr/local/lib/node_modules/parse-develop

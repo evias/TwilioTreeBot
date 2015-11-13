@@ -36,10 +36,55 @@ app.use(express.bodyParser());
  * template if no session is available or render
  * the homepage template for logged users.
  **/
-app.get('/', function(req, res)
+app.get('/', function(request, response)
 {
-  // XXX add referer
-  res.render('signup', {});
+  var currentUser = Parse.User.current();
+  if (currentUser)
+    response.render('homepage', {"currentUser": currentUser});
+  else
+    response.redirect("/signin");
+});
+
+/**
+ * GET /signin
+ * describes the signin GET request.
+ * this handler will render the login view.
+ **/
+app.get('/signin', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (currentUser)
+    response.redirect("/");
+
+  response.render('login', {"currentUser": false});
+});
+
+/**
+ * GET /signup
+ * describes the signup GET request.
+ * this handler will render the signup view.
+ **/
+app.get('/signup', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (currentUser)
+    response.redirect("/");
+
+  response.render('signup', {"currentUser": false});
+});
+
+/**
+ * GET /terms-and-conditions
+ * describes the terms & conditions GET request.
+ * this handler will render the terms view.
+ **/
+app.get('/terms-and-conditions', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (!currentUser)
+    currentUser = false;
+
+  response.render('terms', {"currentUser": currentUser});
 });
 
 // Attach the Express app to Cloud Code.
