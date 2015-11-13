@@ -25,7 +25,12 @@
           <h2>Navigation</h2>
           <ul>
             <li><a href="/">Home</a></li>
+            <% if (currentUser) { %>
+            <li><a href="/settings">Settings</a></li>
+            <li><a href="/signout">Logout</a></li>
+            <% } else { %>
             <li><a href="/signup">Trial Signup</a></li>
+            <% } %>
             <li><a href="/terms-and-conditions">Terms &amp; Conditions</a></li>
           </ul>
           <div class="clearfix"></div>
