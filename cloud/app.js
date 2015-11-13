@@ -1,30 +1,49 @@
+/**
+ * LICENSE
+ *
+ Copyright 2015 Grégory Saive (greg@evias.be)
 
-// These two lines are required to initialize Express in Cloud Code.
- express = require('express');
- app = express();
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-// Global app configuration section
-app.set('views', 'cloud/views');  // Specify the folder to find templates
-app.set('view engine', 'ejs');    // Set the template engine
-app.use(express.bodyParser());    // Middleware for reading request body
+  http://www.apache.org/licenses/LICENSE-2.0
 
-// This is an example of hooking up a request handler with a specific request
-// path and HTTP verb using the Express routing API.
-app.get('/', function(req, res) {
-  res.render('homepage', {});
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ *
+ * @package TwilioTreeBot
+ * @subpackage Parse Hosting
+ * @author Grégory Saive <greg@evias.be>
+ * @license http://www.apache.org/licenses/LICENSE-2.0
+ * @link https://twiliotreebot.parseapp.com
+**/
+
+express = require('express');
+app = express();
+
+app.set('views', 'cloud/views');
+app.set('view engine', 'ejs');
+app.use(express.bodyParser());
+
+/**
+ * GET /
+ * describes the homepage GET request.
+ * this handler will render the authentication
+ * template if no session is available or render
+ * the homepage template for logged users.
+ **/
+app.get('/', function(req, res)
+{
+  if (req.params.sessionToken) {
+    res.render('homepage', {});
+  }
+  // XXX add referer
+  res.render('authentication', {});
 });
-
-// // Example reading from the request query string of an HTTP get request.
-// app.get('/test', function(req, res) {
-//   // GET http://example.parseapp.com/test?message=hello
-//   res.send(req.query.message);
-// });
-
-// // Example reading from the request body of an HTTP post request.
-// app.post('/test', function(req, res) {
-//   // POST http://example.parseapp.com/test (with request body "message=hello")
-//   res.send(req.body.message);
-// });
 
 // Attach the Express app to Cloud Code.
 app.listen();
