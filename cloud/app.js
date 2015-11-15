@@ -46,6 +46,13 @@ app.use(express.cookieSession({
  * @link https://twiliotreebot.parseapp.com
  *******************************************************************************/
 
+/**
+ * Session management PRE-HTTP request handler.
+ * This function will try to retrieve a valid session token
+ * and call Parse.User.become() with it in order for Parse.User
+ * method current() returns the correct request initiating user
+ * object.
+ **/
 app.use(function(req, res, next)
 {
     Parse.User
@@ -91,7 +98,7 @@ app.get('/', function(request, response)
 
 /**
  * GET /sendRequest
- * always REDIRECTS to homepage
+ * always REDIRECTS to homepage.
  **/
 app.get('/sendRequest', function(request, response)
 {
@@ -161,10 +168,9 @@ app.get('/terms-and-conditions', function(request, response)
 
 /**
  * GET /settings
- * describes the homepage GET request.
- * this handler will render the authentication
- * template if no session is available or render
- * the homepage template for logged users.
+ * describes the settings GET request.
+ * this handler loads the currentUser's settings
+ * and displays them in the settings views.
  **/
 app.get('/settings', function(request, response)
 {
@@ -176,18 +182,14 @@ app.get('/settings', function(request, response)
 
     var settings = {
       "officeName": currentUser.get("officeName"),
-      "areaCode": currentUser.get("areaCode")};
-
-    var needsNumber = request.query.needsNumber ? request.query.needsNumber == 1
-                    : false;
+      "areaCode": currentUser.get("areaCode"),
+      "phoneNumber": currentUser.get("twilioPhoneNumber"),
+      "emailAddress": currentUser.get("username")};
 
     var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
     response.render('settings', {
       "currentUser": currentUser,
-      "errorMessage": errorMessage,
-      "successMessage": false,
-      "settings": settings,
-      "needsNumber": needsNumber
+      "settings": settings
     });
   }
 });
@@ -232,10 +234,37 @@ app.post('/signin', function(request, response)
 });
 
 /**
+ * POST /validateAreaCode
+ * this POST handler checks for available
+ * phone numbers for the given area code.
+ * Parse CloudCode Function "validateAreaCode"
+ * responses with an error if no available
+ * numbers are found.
+ **/
+app.post("/validateAreaCode", function(request, response)
+{
+  var code = request.body.code;
+
+  Parse.Cloud.run("validateAreaCode", {
+    userArea: code
+  }, {
+    success: function (cloudResponse)
+    {
+      response.send("OK");
+    },
+    error: function (cloudResponse)
+    {
+      response.send("Error: " + cloudResponse.message);
+    }
+  });
+});
+
+/**
  * POST /signup
  * describes the signup POST request.
  * this handler is where we register new
- * Parse.User entries.
+ * Parse.User entries and call the createNumber
+ * Parse CloudCode Function.
  **/
 app.post('/signup', function(request, response)
 {
@@ -292,11 +321,11 @@ app.post('/signup', function(request, response)
           {
             response.redirect("/");
           },
-          error: function (cloudResponse)
+          error: function (error)
           {
-            // could not create number but twilio account should be present!
-            uri = "/settings?needsNumber=1&errorMessage=" + escape(cloudResponse.errorMessage);
-            response.redirect(uri);
+            response.render('signup', {
+              "currentUser": false,
+              "errorMessage": error.message});
           }
         });
       },
@@ -312,33 +341,12 @@ app.post('/signup', function(request, response)
 });
 
 /**
- * POST /validateAreaCode
- * this POST handler checks for available
- * phone numbers for the given area code.
- * Parse CloudCode Function "validateAreaCode"
- * responses with an error if no available
- * numbers are found.
- **/
-app.post("/validateAreaCode", function(request, response)
-{
-  var code = request.body.code;
-
-  Parse.Cloud.run("validateAreaCode", {
-    userArea: code
-  }, {
-    success: function (cloudResponse)
-    {
-      response.send("OK");
-    },
-    error: function (cloudResponse)
-    {
-      response.send("Error: " + cloudResponse.message);
-    }
-  });
-});
-
-/**
  * POST /sendRequest
+ * this handler describes the sendRequest POST request
+ * which initiates Parse CloudCode function calls to
+ * syncAccount and startTree. After this handler has
+ * executed, a FeedbackDiscussion will have been created
+ * and OutboundMessage entries sent to the TwilioAccount.
  **/
 app.post('/sendRequest', function(request, response)
 {
@@ -412,23 +420,23 @@ app.post('/sendRequest', function(request, response)
                 });
               }
             },
-            error: function(cloudResponse) {
+            error: function(error) {
               response.render("homepage", {
                 "currentUser": currentUser,
-                "errorMessage": cloudResponse,
+                "errorMessage": error.message,
                 "successMessage": false
               });
             }
           }); /* end Parse.Cloud.run("startTree") */
         },
-        error: function(cloudResponse)
+        error: function(error)
         {
           // error happened on /syncAccount, we could not sync
           // the input data with a new TwilioAccount entry.
           // should never happen.
           response.render("homepage", {
             "currentUser": currentUser,
-            "errorMessage": cloudResponse,
+            "errorMessage": error.message,
             "successMessage": false
           });
         }
@@ -441,6 +449,10 @@ app.post('/sendRequest', function(request, response)
  * POST /handleFeedback
  * This URL is called by Twilio when an Incoming Message
  * enters for one of the created subaccounts.
+ * It initiates a handleTree CloudCode Function call
+ * which will handle the incoming Feedback message and
+ * send out OutboundMessage entries according to the
+ * discussion state and incoming message.
  **/
 app.post('/handleFeedback', function(request, response)
 {
@@ -475,43 +487,13 @@ app.post('/handleFeedback', function(request, response)
           "result": false,
           "errorMessage": "Unknown /handleFeedback Error Happened."});
     },
-    error: function(cloudResponse)
+    error: function(error)
     {
-      if (cloudResponse && cloudResponse.errorMessage)
-        response.send({
-          "result": false,
-          "errorMessage": "/handleTree Error: " + cloudResponse.errorMessage});
-      else {
-        response.send({
-          "result": false,
-          "errorMessage": "/handleTree Error: " + cloudResponse});
-      }
+      response.send({
+        "result": false,
+        "errorMessage": "/handleTree Error: " + error.message});
     }
   });
-});
-
-/**
- * POST /settings
- **/
-app.post('/settings', function(request, response)
-{
-  var currentUser = Parse.User.current();
-  if (! currentUser)
-    // no session available => back to login
-    response.redirect("/signin");
-  else {
-    var officeName = request.body.officeName;
-    var areaCode   = request.body.areaCode;
-    var needsNumber = request.body.doCreateNumber;
-    var settings    = {"officeName": officeName, "areaCode": areaCode};
-
-    response.render('settings', {
-      "currentUser": currentUser,
-      "errorMessage": false,
-      "successMessage": "Settings saved successfully!",
-      "settings": settings,
-      "needsNumber": needsNumber});
-  } /* end if (!currentUser) block */
 });
 
 // Attach the Express app to Cloud Code.

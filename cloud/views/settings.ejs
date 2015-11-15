@@ -4,46 +4,38 @@
     <div class="right">
         <section>
             <div class="title align-center">
-                <h2>Update your Settings</h2>
-                <p>This page allows you to update your Settings.</p>
+                <h2>Your Account</h2>
+                <p>This page allows you to view your Account informations.</p>
             </div>
             <div class="wide">
                 <div class="form-box">
-                    <% if (successMessage) { %>
-                    <div id="success">
-                        <div class="green align-center">
-                            <p><%= successMessage %></p>
-                        </div>
-                    </div>
-                    <% } %>
-                    <% if (errorMessage) { %>
-                    <div id="error">
-                        <div>
-                            <p><b>No numbers Available for this area code!</b></p>
-                        </div>
-                    </div>
-                    <% } %>
-
                     <form id="update-settings" name="update-settings" action="/settings" method="post" novalidate="novalidate">
                         <div class="form-row">
                             <label>Office Name</label>
-                            <input readonly type="text" id="firstName" name="officeName"
+                            <input readonly type="text" id="officeName" name="officeName"
                                    size="30" value="<%= settings.officeName %>"
                                    required="" class="text login_input">
                         </div>
 
                         <div class="form-row">
+                            <label>Email Address</label>
+                            <input readonly type="text" id="emailAddress" name="emailAddress"
+                                   size="30" value="<%= settings.emailAddress %>"
+                                   required="" class="text login_input">
+                        </div>
+
+                        <div class="form-row">
                             <label>Area Code</label>
-                            <input type="text" id="firstName" name="areaCode"
+                            <input readonly type="text" id="areaCode" name="areaCode"
                                    size="30" value="<%= settings.areaCode %>"
                                    required="" class="text login_input">
                         </div>
 
                         <div class="form-row">
-                            <% if (needsNumber) { %>
-                            <input type="hidden" name="doCreateNumber" value="1" />
-                            <% } %>
-                            <input id="account-submit" type="submit" name="submit" value="Save Settings" class="btn btn-wide">
+                            <label>Feedback Phone Number</label>
+                            <input readonly type="text" id="phoneNumber" name="phoneNumber"
+                                   size="30" value="<%= settings.phoneNumber %>"
+                                   required="" class="text login_input">
                         </div>
                     </form>
                 </div>

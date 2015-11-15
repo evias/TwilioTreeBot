@@ -26,14 +26,31 @@ require('cloud/app.js');
 
 // PROD
 var twilioClient = require('twilio')('SK30c19224c46a68b968c3afecbd0e9fb8', 'Tr8kQmo6ta7aUxkp4JlKB1E16jSK842P');
-// TEST
-//var twilioClient = require('twilio')('AC7fc66d496535a8ff9aae2aa30cc92246', '0ad46ddb3c287f99b8131c02f73781e9');
+
+/*******************************************************************************
+ * Models classes definition for TwilioTreeBot
+ * @link https://twiliotreebot.parseapp.com
+ *******************************************************************************/
+
+/**
+ * Model class TwilioAccount
+ * This class describes a Feedback Customer in the Parse App.
+ * It simply extends the Parse.Object object with no method
+ * descriptions as of now.
+ **/
 var TwilioAccount = Parse.Object.extend("TwilioAccount",
   {},
   {}
 );
 /* end Model TwilioAccount */
 
+/**
+ * Model class TwilioNumber
+ * This class describes a Twilio PhoneNumber in the Parse App.
+ * This class provides with a object method sync() which
+ * can be called to retrieve a TwilioNumber entry by its
+ * userId. (Only one TwilioNumber entry will correspond!)
+ **/
 var TwilioNumber = Parse.Object.extend("TwilioNumber",
   {
     sync: function(callback)
@@ -62,18 +79,21 @@ var TwilioNumber = Parse.Object.extend("TwilioNumber",
       });
     }
   },
-  {
-    Factory: function(parseTwilioAccount)
-    {
-      var number = new TwilioNumber();
-      number.set("accountId", parseTwilioAccount.id);
-      number.set("accountSid", parseTwilioAccount.get("twilioSID"));
-      return number;
-    }
-  }
+  {}
 );
 /* end Model TwilioNumber */
 
+/**
+ * Model class OutboundMessage
+ * This class describes a OutboundMessage entry in the Parse App.
+ * This class provides with a object method send() which can
+ * be called to use the set accountSid, to, from and msgText
+ * data and send the OutboundMessage using the Twilio API SMS
+ * endpoint.
+ * Also, this class provides a static Factory() which can be
+ * used to retrieve a populated OutboundMessage entry with
+ * treeIndex, msgText, accountId and to fields already set.
+ **/
 var OutboundMessage = Parse.Object.extend("OutboundMessage",
   {
     send: function(callback)
@@ -93,6 +113,17 @@ var OutboundMessage = Parse.Object.extend("OutboundMessage",
     }
   },
   {
+    /**
+     * OutboundMessage.Factory() class function.
+     * This functions takes a TwilioAccount entry and a
+     * treeIndex which is one of :
+     * ['first', 'second', 'yes-first', 'yes-second', 'no-first',
+     *  'no-second', 'feedback-first', 'feedback-second', 'unsupported']
+     *
+     * @param   TwilioAccount   parseTwilioAccount
+     * @param   string          treeIndex
+     * @return OutboundMessage [UNSAVED]
+     **/
     Factory: function(parseTwilioAccount, treeIndex)
     {
       var text = "";
@@ -148,7 +179,6 @@ var OutboundMessage = Parse.Object.extend("OutboundMessage",
       var message = new OutboundMessage();
       message.set("treeIndex", treeIndex);
       message.set("msgText", text);
-      message.set("accountSid", parseTwilioAccount.get("twilioSID"));
       message.set("accountId", parseTwilioAccount.id);
       message.set("to", parseTwilioAccount.get("phoneNumber"));
       return message;
@@ -157,18 +187,40 @@ var OutboundMessage = Parse.Object.extend("OutboundMessage",
 );
 /* end Model OutboundMessage */
 
+/**
+ * Model class IncomingMessage
+ * This class describes a IncomingMessage entry in the Parse App.
+ * It simply extends the Parse.Object object with no method
+ * descriptions as of now.
+ **/
 var IncomingMessage = Parse.Object.extend("IncomingMessage",
   {},
   {}
 );
 /* end Model IncomingMessage */
 
+/**
+ * Model class FeedbackDiscussion
+ * This class describes a FeedbackDiscussion entry in the Parse App.
+ * It simply extends the Parse.Object object with no method
+ * descriptions as of now.
+ **/
 var FeedbackDiscussion = Parse.Object.extend("FeedbackDiscussion",
   {},
   {}
 );
 /* end Model FeedbackDiscussion */
 
+/**
+ * Model class FeedbackService
+ * This class describes a FeedbackService Object in the Parse App.
+ * Static methods implemented include:
+ * delegateService, answerToYesNo, answerThanks, answerFeedback.
+ * The method delegateService should be called to process the feedback
+ * described by an IncomingMessage entry and a FeedbackDiscussion entry.
+ * The delegateService function will check the discussion state and
+ * interpret the IncomingMessage entry to know how to handle.
+ **/
 var FeedbackService = Parse.Object.extend("FeedbackService",
   {},
   {
@@ -308,6 +360,11 @@ Parse.Object.registerSubclass("OutboundMessage", OutboundMessage);
 Parse.Object.registerSubclass("IncomingMessage", IncomingMessage);
 Parse.Object.registerSubclass("FeedbackDiscussion", FeedbackDiscussion);
 Parse.Object.registerSubclass("FeedbackService", FeedbackService);
+
+/*******************************************************************************
+ * Parse CloudCode Functions definition for TwilioTreeBot
+ * @link https://twiliotreebot.parseapp.com
+ *******************************************************************************/
 
 /**
  * The ping Parse CloudCode Functions simply response with
