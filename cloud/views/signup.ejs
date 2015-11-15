@@ -13,22 +13,22 @@
                     <% if (errorMessage) { %>
                     <div id="error">
                         <div>
-                            <p>Something went wrong. Please refresh and try again. (Error: <%= errorMessage %>)</p>
+                            <p>Error: <%= errorMessage %></p>
                         </div>
                     </div>
                     <% } %>
                     <form id="signup" name="signup" method="post" novalidate="novalidate">
                         <div class="form-row">
                             <label>Office Name <span class="required">*</span></label>
-                            <input type="text" name="office" id="officename" size="30" value="" required="" class="text login_input">
+                            <input type="text" name="office" id="officename" size="30" value="<%= formValues.office %>" required="" class="text login_input">
                         </div>
                         <div class="form-row">
                             <label>Email Address <span class="required">*</span></label>
-                            <input type="text" name="username" id="username" size="30" value="" required="" class="text login_input">
+                            <input type="text" name="username" id="username" size="30" value="<%= formValues.username %>" required="" class="text login_input">
                         </div>
                         <div class="form-row">
                             <label>Area Code <span class="required">*</span></label>
-                            <input type="text" name="area" id="areacode" size="30" value="" class="text login_input">
+                            <input type="text" name="area" id="areacode" size="30" value="<%= formValues.area %>" class="text login_input">
                         </div>
                         <div class="form-row">
                             <label>Password</label>

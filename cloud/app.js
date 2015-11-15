@@ -133,8 +133,15 @@ app.get('/signup', function(request, response)
   if (currentUser)
     response.redirect("/");
   else {
+    var formValues = {
+      "username": "",
+      "email": "",
+      "office": "",
+      "area": ""
+    };
     response.render('signup', {
       "currentUser": false,
+      "formValues": formValues,
       "errorMessage": false});
   }
 });
@@ -274,6 +281,13 @@ app.post('/signup', function(request, response)
   var office   = request.body.office;
   var area     = request.body.area;
 
+  var formValues = {
+    "username": username,
+    "email": email,
+    "office": office,
+    "area": area
+  };
+
   errors = [];
   if (!username || !username.length)
     errors.push("The Email adress may not be empty.");
@@ -306,6 +320,7 @@ app.post('/signup', function(request, response)
         // refresh with error messages displayed
         response.render("signup", {
           "currentUser": false,
+          "formValues": formValues,
           "errorMessage": errors.join(" ", errors)});
       else {
         // sign-up user !
@@ -346,6 +361,7 @@ app.post('/signup', function(request, response)
 
             response.render('signup', {
               "currentUser": false,
+              "formValues": formValues,
               "errorMessage": error.message});
           }
         });
