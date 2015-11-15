@@ -290,54 +290,68 @@ app.post('/signup', function(request, response)
   if (!area || !area.length)
     errors.push("The Area code may not be empty.");
 
-  if (errors.length)
-    // refresh with error messages displayed
-    response.render("signup", {
-      "currentUser": false,
-      "errorMessage": errors.join(" ", errors)});
-  else {
-    // sign-up user !
-    var currentUser = new Parse.User();
-    currentUser.set("username", username);
-    currentUser.set("email", email);
-    currentUser.set("password", password);
-    currentUser.set("officeName", office);
-    currentUser.set("areaCode", area);
+  // check officeName unicity
+  // field username is automatically unique due to
+  // Parse.user.signUp function call.
+  var query = new Parse.Query(Parse.User);
+  query.equalTo("officeName", office);
+  query.find({
+    success: function(parseUsers)
+    {
+      if (parseUsers.length)
+        // Error: Office name already taken
+        errors.push("This office name is already taken.");
 
-    currentUser.signUp(null, {
-      success: function(currentUser) {
-        // user registration was successfully done
-        // we can now safely save the session token
-        // and redirect the user to the homepage
+      if (errors.length)
+        // refresh with error messages displayed
+        response.render("signup", {
+          "currentUser": false,
+          "errorMessage": errors.join(" ", errors)});
+      else {
+        // sign-up user !
+        var currentUser = new Parse.User();
+        currentUser.set("username", username);
+        currentUser.set("email", email);
+        currentUser.set("password", password);
+        currentUser.set("officeName", office);
+        currentUser.set("areaCode", area);
 
-        request.session.loggedState  = true;
-        request.session.sessionToken = currentUser.getSessionToken();
+        currentUser.signUp(null, {
+          success: function(currentUser) {
+            // user registration was successfully done
+            // we can now safely save the session token
+            // and redirect the user to the homepage
 
-        Parse.Cloud.run("createNumber", {
-          userId: currentUser.id,
-          userArea: currentUser.get("areaCode")
-        }, {
-          success: function (cloudResponse)
-          {
-            response.redirect("/");
+            request.session.loggedState  = true;
+            request.session.sessionToken = currentUser.getSessionToken();
+
+            Parse.Cloud.run("createNumber", {
+              userId: currentUser.id,
+              userArea: currentUser.get("areaCode")
+            }, {
+              success: function (cloudResponse)
+              {
+                response.redirect("/");
+              },
+              error: function (error)
+              {
+                response.render('signup', {
+                  "currentUser": false,
+                  "errorMessage": error.message});
+              }
+            });
           },
-          error: function (error)
-          {
+          error: function(currentUser, error) {
+            request.session = null;
+
             response.render('signup', {
               "currentUser": false,
               "errorMessage": error.message});
           }
         });
-      },
-      error: function(currentUser, error) {
-        request.session = null;
-
-        response.render('signup', {
-          "currentUser": false,
-          "errorMessage": error.message});
       }
-    });
-  }
+    }
+  });
 });
 
 /**
