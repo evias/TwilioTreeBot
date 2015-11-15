@@ -346,12 +346,19 @@ app.post('/signup', function(request, response)
             }, {
               success: function (cloudResponse)
               {
-                response.redirect("/");
+                var feedbackNumber = cloudResponse.twilioNumber.get("phoneNumber");
+                currentUser.set("twilioPhoneNumber", feedbackNumber);
+                currentUser.save(null, {
+                  success: function(currentUser) {
+                    response.redirect("/");
+                  }
+                });
               },
               error: function (error)
               {
                 response.render('signup', {
                   "currentUser": false,
+                  "formValues": formValues,
                   "errorMessage": error.message});
               }
             });
