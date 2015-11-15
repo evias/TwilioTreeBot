@@ -35,7 +35,7 @@
                             <input type="password" name="password" id="password" size="30" value="" class="text login_input">
                         </div>
                         <div class="form-row">
-                            <input type="submit" value="Signup and get started!" class="btn btn-wide">
+                            <input type="submit" id="signup-submit" value="Signup and get started!" class="btn btn-wide">
                         </div>
                         <div class="align-center">We take privacy seriously.</div>
                     </form>
@@ -55,6 +55,11 @@ $(document).ready(function()
     {
         e.preventDefault();
 
+        $("#signup-submit").css({
+            "background": "#fff url(/images/ajax-loading.gif) no-repeat center center"
+        });
+        $("#signup-submit").val("");
+
         if ($("#error").length)
             $("#error").remove();
 
@@ -69,40 +74,16 @@ $(document).ready(function()
                 if (d !== "OK") {
                     var err = $("<div id='error'><div><p>" + d + "</p></div></div>");
                     $(".form-box").prepend(err);
+                    $("#signup-submit").css("background", "#3aa2cb");
+                    $("#signup-submit").val("Signup and get started!");
                 }
                 else
+                    // validation OK.
                     this.submit();
             }
         });
         return false;
     });
-/*
-
-    // make sure phone numbers are available for this
-    // area code, if not alert user.
-    $("#submit").click(function(e)
-    {
-        if ($("#error").length)
-            $("#error").remove();
-
-        var returning = true;
-        var code = $("#areacode").val();
-        $.ajax({
-            url: "/validateAreaCode",
-            type: "post",
-            data: {code: code},
-            success:function(d) {
-                if (d !== "OK") {
-                    var err = $("<div id='error'><div><p>" + d + "</p></div></div>");
-                    $(".form-box").prepend(err);
-
-                    e.preventDefault();
-                    returning = false;
-                }
-            }
-        });
-    });
-*/
 });
 </script>
 

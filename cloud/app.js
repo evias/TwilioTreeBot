@@ -505,37 +505,12 @@ app.post('/settings', function(request, response)
     var needsNumber = request.body.doCreateNumber;
     var settings    = {"officeName": officeName, "areaCode": areaCode};
 
-    if (needsNumber) {
-      Parse.Cloud.run("createNumber", {
-        userId: currentUser.id,
-        userArea: areaCode
-      }, {
-        success: function (cloudResponse)
-        {
-          var myPhone = cloudResponse.twilioNumber.get("phoneNumber");
-          response.render('settings', {
-            "currentUser": currentUser,
-            "errorMessage": false,
-            "successMessage": "You Feedback Phone number is: " + myPhone,
-            "settings": settings,
-            "needsNumber": needsNumber});
-        },
-        error: function (cloudResponse)
-        {
-          // could not create number.
-          uri = "/settings?needsNumber=1&errorMessage=" + escape(cloudResponse.errorMessage);
-          response.redirect(uri);
-        }
-      });
-    }
-    else {
-      response.render('settings', {
-        "currentUser": currentUser,
-        "errorMessage": false,
-        "successMessage": "Settings saved successfully!",
-        "settings": settings,
-        "needsNumber": needsNumber});
-    }
+    response.render('settings', {
+      "currentUser": currentUser,
+      "errorMessage": false,
+      "successMessage": "Settings saved successfully!",
+      "settings": settings,
+      "needsNumber": needsNumber});
   } /* end if (!currentUser) block */
 });
 

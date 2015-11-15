@@ -309,11 +309,182 @@ Parse.Object.registerSubclass("IncomingMessage", IncomingMessage);
 Parse.Object.registerSubclass("FeedbackDiscussion", FeedbackDiscussion);
 Parse.Object.registerSubclass("FeedbackService", FeedbackService);
 
+/**
+ * The ping Parse CloudCode Functions simply response with
+ * a "pong" message and a timestamp.
+ * This Function can be used to check the API availability.
+ **/
 Parse.Cloud.define("ping", function(request, response)
 {
   response.success({ping: "pong", timestamp: new Date()});
 });
 
+/**
+ * The createNumber Parse CloudCode Function checks for an available
+ * twilio account with the user's officeName. If none was created
+ * before we create one here.
+ * After the Twilio Subaccount creation we can create a new number
+ * at twilio. This is the number that will be used for all feedback
+ * of the currentUser !
+ **/
+Parse.Cloud.define("createNumber", function(request, response)
+{
+  var userId= "undefined" != typeof request.params.userId ?
+          request.params.userId : "";
+  var userArea= "undefined" != typeof request.params.userArea ?
+          request.params.userArea : "";
+
+  /**
+   * The createNumber function will attempt to create
+   * a Twilio phone number using the userArea parameter.
+   * A call to the CloudCode Function validateAreaCode
+   * MUST be initiated before you call this createNumber
+   * function.
+   *
+   * @param   twilioClient.accounts Object  accountAtTwilio
+   * @param   string                        userArea
+   * @param   callable                      callback
+   * @throws  string on error.
+   **/
+  var createNumber = function(accountAtTwilio, userArea, callback)
+  {
+    // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
+    var apiClient = new require('twilio')('AC262f226d31773bd3420fbae7241df466', '8595d459352de91e9c2a3d25a86ee6d6');
+    apiClient.availablePhoneNumbers("US")
+                .local.list({
+      AreaCode: userArea,
+      SmsEnabled: true,
+      ExcludeAllAddressRequired: true
+    },
+    function(err, searchResults) {
+      if (err)
+        // general Twilio API error.
+        throw("Message : " + err.message);
+
+      if (! searchResults.availablePhoneNumbers
+          ||searchResults.availablePhoneNumbers.length < 1)
+        // should never come here because /validateAreaCode
+        // is called before !
+        throw("Message : No numbers found with that area code");
+
+      var testingPurchaseNumber = searchResults.availablePhoneNumbers[0];
+
+      apiClient.incomingPhoneNumbers.create({
+        PhoneNumber: testingPurchaseNumber.phoneNumber,
+        SmsUrl: "https://twiliotreebot.parseapp.com/handleFeedback?tree=" + testingPurchaseNumber.phoneNumber,
+        SmsMethod: "POST"
+      },
+      function(err, purchasedNumber) {
+
+        if (err)
+          // phone number purchase error at Twilio API endpoint.
+          throw("Message : " + err.message);
+
+        newPhoneNumber = purchasedNumber.phoneNumber;
+
+        var parseTwilioNumber = new TwilioNumber();
+        parseTwilioNumber.set("userId", userId);
+        parseTwilioNumber.set("numberSid", purchasedNumber.sid);
+        parseTwilioNumber.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+        parseTwilioNumber.set("phoneNumber", newPhoneNumber);
+        parseTwilioNumber.save(null, {
+          success: function(parseTwilioNumber)
+          {
+            // number created at Twilio and TwilioNumber
+            // entry saved in our Parse App.
+            callback(parseTwilioNumber);
+          }
+        });
+      }); /* end twilioClient.incomingPhoneNumbers callback */
+    }); /* end apiClient.availablePhoneNumbers callback */
+  };
+
+  // Create the user account at twilio
+  // then create a Number and link to user.
+  var query = new Parse.Query(Parse.User);
+  query.get(userId, {
+    success: function(currentUser)
+    {
+      twilioClient.accounts.list({
+        friendlyName: currentUser.get("officeName")
+      },
+      function(err, data) {
+        var officeName = currentUser.get("officeName");
+        if (data && data.account && data.accounts.length) {
+          // account with this friendlyName already exists !
+          response.error("Office Name '" + officeName + "' already exists.");
+        }
+        else {
+          // now create account.
+          twilioClient.accounts.create(
+            {friendlyName: officeName},
+            function(err, twilioAccount) {
+              // Subaccount successfully created, will now
+              // create a Phone Number at Twilio and save
+              // it as a TwilioNumber instance in our Parse app.
+              try {
+                createNumber(twilioAccount, userArea,
+                  function(twilioNumber)
+                  {
+                    response.success({"twilioNumber": twilioNumber});
+                  });
+              }
+              catch (e) { response.error("Could not create number: " + e) };
+            });
+        }
+      }); /* end twilio call accounts.list */
+    },
+    error: function(error) {
+      response.error("User account ID '" + userId + "' not found.");
+    }
+  });
+});
+
+/**
+ * The validateAreaCode CloudCode Function will response with
+ * an error in case no phone numbers are available for the given
+ * area code.
+ * This Function MUST be called before initiating a call to the
+ * createNumber Function.
+ **/
+Parse.Cloud.define("validateAreaCode", function(request, response)
+{
+  var code= "undefined" != typeof request.params.userArea ?
+          request.params.userArea : "";
+
+  // Check for available phone numbers in
+  // the given Area code.
+  // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
+  var apiClient = new require('twilio')('AC262f226d31773bd3420fbae7241df466', '8595d459352de91e9c2a3d25a86ee6d6');
+  apiClient.availablePhoneNumbers("US")
+              .local.list({
+    AreaCode: code,
+    SmsEnabled: true,
+    ExcludeAllAddressRequired: true
+  },
+  function(err, searchResults) {
+
+    if (err)
+      // general Twilio API error
+      response.error(err.message);
+
+    else if (! searchResults.availablePhoneNumbers
+        || searchResults.availablePhoneNumbers.length < 1)
+      // no phone numbers available for area code.
+      response.error("No numbers found with that area code");
+
+    else if (searchResults.availablePhoneNumbers.length >= 1)
+      // OK
+      response.success({"result": true, "errorMessage": false});
+  }); /* end apiClient.availablePhoneNumbers callback */
+});
+
+/**
+ * The syncAccount CloudCode Function will create a TwilioAccount
+ * entry on the Parse App OR reatrieve its data.
+ * This method can be used to retrieve a TwilioAccount by its
+ * phoneNumber and userId fields.
+ **/
 Parse.Cloud.define("syncAccount", function(request, response)
 {
   var name  = "undefined" != typeof request.params.firstName ?
@@ -389,6 +560,12 @@ Parse.Cloud.define("syncAccount", function(request, response)
   });
 });
 
+/**
+ * The startTree CloudCode Function will initiate a FeedbackDiscussion
+ * between a TwilioNumber and TwilioAccount. One TwilioNumber is always
+ * assigned to only one Parse.User but can have multiple
+ * FeedbackDiscussion entries with multiple TwilioAccount entries.
+ **/
 Parse.Cloud.define("startTree", function(request, response)
 {
   var accountId = "undefined" != typeof request.params.accountId ?
@@ -488,6 +665,11 @@ Parse.Cloud.define("startTree", function(request, response)
   }); /* end query.get(accountId) block */
 });
 
+/**
+ * The handleTree CloudCode Function describes the SMS receiver.
+ * This function MUST be called by the SMS receiver app in order
+ * to handle the Feedback message received.
+ **/
 Parse.Cloud.define("handleTree", function(request, response)
 {
   var customerNumber = "undefined" != typeof request.params.From ?
@@ -585,132 +767,4 @@ Parse.Cloud.define("handleTree", function(request, response)
       });
     }
   });
-});
-
-Parse.Cloud.define("createNumber", function(request, response)
-{
-  var userId= "undefined" != typeof request.params.userId ?
-          request.params.userId : "";
-  var userArea= "undefined" != typeof request.params.userArea ?
-          request.params.userArea : "";
-
-  var createNumber = function(accountAtTwilio, userArea, callback)
-  {
-    // USE apiClient here because we need to the master
-    // API key to query for potential available numbers.
-    // then purchase new number at Twilio
-    // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-    var apiClient = new require('twilio')('AC262f226d31773bd3420fbae7241df466', '8595d459352de91e9c2a3d25a86ee6d6');
-    apiClient.availablePhoneNumbers("US")
-                .local.list({
-      AreaCode: userArea,
-      SmsEnabled: true,
-      ExcludeAllAddressRequired: true
-    },
-    function(err, searchResults) {
-      if (err)
-        throw("Message : " + err.message);
-
-      if (! searchResults.availablePhoneNumbers
-          ||searchResults.availablePhoneNumbers.length < 1)
-        throw("Message : No numbers found with that area code");
-
-      var testingPurchaseNumber = searchResults.availablePhoneNumbers[0];
-
-      apiClient.incomingPhoneNumbers.create({
-        PhoneNumber: testingPurchaseNumber.phoneNumber,
-        SmsUrl: "https://twiliotreebot.parseapp.com/handleFeedback?tree=" + testingPurchaseNumber.phoneNumber,
-        SmsMethod: "POST"
-      },
-      function(err, purchasedNumber) {
-
-        if (err)
-          throw("Message : " + err.message);
-
-        newPhoneNumber = purchasedNumber.phoneNumber;
-
-        var parseTwilioNumber = new TwilioNumber();
-        parseTwilioNumber.set("userId", userId);
-        parseTwilioNumber.set("numberSid", purchasedNumber.sid);
-        parseTwilioNumber.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
-        parseTwilioNumber.set("phoneNumber", newPhoneNumber);
-        parseTwilioNumber.save(null, {
-          success: function(parseTwilioNumber)
-          {
-            callback(parseTwilioNumber);
-          }
-        });
-      }); /* end twilioClient.incomingPhoneNumbers callback */
-    }); /* end apiClient.availablePhoneNumbers callback */
-  };
-
-  // Create the user account on twilio
-  // then create a Number and link to user.
-  var query = new Parse.Query(Parse.User);
-  query.get(userId, {
-    success: function(currentUser)
-    {
-      twilioClient.accounts.list({
-        friendlyName: currentUser.get("username")
-      },
-      function(err, data) {
-        if (!data || !data.accounts || !data.accounts.length) {
-          // need to create account.
-          twilioClient.accounts.create(
-            {friendlyName: currentUser.get("username")},
-            function(err, twilioAccount) {
-
-              try {
-                createNumber(twilioAccount, userArea,
-                  function(twilioNumber)
-                  {
-                    response.success({"twilioNumber": twilioNumber});
-                  });
-              }
-              catch (e) { response.error({"errorMessage": e}) };
-            });
-        }
-        else {
-          // account already exists.
-          try {
-            createNumber(data.accounts[0], userArea,
-              function(twilioNumber)
-              {
-                response.success({"twilioNumber": twilioNumber});
-              });
-          }
-          catch (e) { response.error({"errorMessage": e}) };
-        }
-      });
-    }
-  });
-});
-
-Parse.Cloud.define("validateAreaCode", function(request, response)
-{
-  var code= "undefined" != typeof request.params.userArea ?
-          request.params.userArea : "";
-
-  // Check for available phone numbers in
-  // the given Area code.
-  // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-  var apiClient = new require('twilio')('AC262f226d31773bd3420fbae7241df466', '8595d459352de91e9c2a3d25a86ee6d6');
-  apiClient.availablePhoneNumbers("US")
-              .local.list({
-    AreaCode: code,
-    SmsEnabled: true,
-    ExcludeAllAddressRequired: true
-  },
-  function(err, searchResults) {
-
-    if (err)
-      response.error(err.message);
-
-    else if (! searchResults.availablePhoneNumbers
-        || searchResults.availablePhoneNumbers.length < 1)
-      response.error("No numbers found with that area code");
-
-    else if (searchResults.availablePhoneNumbers.length >= 1)
-      response.success({"result": true, "errorMessage": false});
-  }); /* end apiClient.availablePhoneNumbers callback */
 });
