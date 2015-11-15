@@ -29,32 +29,7 @@ var twilioClient = require('twilio')('SK30c19224c46a68b968c3afecbd0e9fb8', 'Tr8k
 // TEST
 //var twilioClient = require('twilio')('AC7fc66d496535a8ff9aae2aa30cc92246', '0ad46ddb3c287f99b8131c02f73781e9');
 var TwilioAccount = Parse.Object.extend("TwilioAccount",
-  {
-    /**
-     * This method is used to sync the row with
-     * a Twilio subaccount !
-     * @see https://www.twilio.com/docs/api/rest/subaccounts
-     **/
-    sync: function(callback)
-    {
-      var self = this;
-      var name = this.get("firstName") + "(" + this.get("phoneNumber") + ")";
-
-      twilioClient.accounts.list({friendlyName: name}, function(err, data) {
-        if (!data || !data.accounts || !data.accounts.length) {
-          // need to create account.
-          twilioClient.accounts.create(
-              {friendlyName: name},
-              function(err, twilioAccount) {
-                  callback(twilioAccount);
-              });
-        }
-        else
-            // account already exists.
-            callback(data.accounts[0]);
-      });
-    }
-  },
+  {},
   {}
 );
 /* end Model TwilioAccount */
@@ -64,13 +39,11 @@ var TwilioNumber = Parse.Object.extend("TwilioNumber",
     sync: function(callback)
     {
       var self       = this;
-      var accountId  = this.get("accountId");
-      var accountSid = this.get("accountSid");
+      var userId     = this.get("userId");
 
       // Try to fetch the phoneNumber from TwilioNumber
-      // Or purchase a new number with TwilioAccount
       var query = new Parse.Query(TwilioNumber);
-      query.equalTo("accountId", accountId);
+      query.equalTo("userId", userId);
       query.first({
         success: function(parseTwilioNumber)
         {
@@ -357,6 +330,8 @@ Parse.Cloud.define("syncAccount", function(request, response)
   if (!name.length || !phone.length)
     response.error("Fields firstName and phoneNumber are mandatory !");
 
+  phone = ("+" + phone);
+
   var createAccount = function(userId, name, phone, url, callback)
   {
     var account = new TwilioAccount();
@@ -370,16 +345,7 @@ Parse.Cloud.define("syncAccount", function(request, response)
     // then save Twilio's SID in Parse App TwilioAccount entity
     account.save(null, {
       success: function(act) {
-        account.sync(function(act_at_twilio)
-          {
-            // update parse TwilioAccount entity to contain
-            // a Twilio SID which is used for sending messages.
-            account.set("twilioSID", act_at_twilio.sid);
-            account.save();
-
-            // Done with the syncAccount call !
-            callback(account);
-          });
+        callback(act);
       },
       error: function(act, error) {
         throw("Could not save account. Error: " + error);
@@ -421,7 +387,6 @@ Parse.Cloud.define("syncAccount", function(request, response)
       catch (e) { console.log("ERROR IS: "); console.log(e); response.error(e) };
     }
   });
-
 });
 
 Parse.Cloud.define("startTree", function(request, response)
@@ -430,6 +395,8 @@ Parse.Cloud.define("startTree", function(request, response)
               request.params.accountId : "";
   var userAreaCode = "undefined" != typeof request.params.userAreaCode ?
               request.params.userAreaCode : "";
+  var userId = "undefined" != typeof request.params.userId ?
+              request.params.userId : "";
 
   var sendTwilioWelcomeSMS = function(outboundMessage, twilioNumber, twilioAccount, callback)
     {
@@ -444,7 +411,7 @@ Parse.Cloud.define("startTree", function(request, response)
       discussion.save();
 
       // Send first SMS (outboundMessage parameter)
-      twilioClient.accounts(twilioAccount.get("twilioSID"))
+      twilioClient.accounts(twilioNumber.get("accountSid"))
                   .sms.messages.create(
       {
         to: twilioAccount.get("phoneNumber"),
@@ -454,7 +421,7 @@ Parse.Cloud.define("startTree", function(request, response)
       function(err, text) {
         // Send second SMS
         var secondMessage = OutboundMessage.Factory(twilioAccount, "second");
-        twilioClient.accounts(twilioAccount.get("twilioSID"))
+        twilioClient.accounts(twilioNumber.get("accountSid"))
                 .sms.messages.create(
         {
           to: twilioAccount.get("phoneNumber"),
@@ -463,6 +430,7 @@ Parse.Cloud.define("startTree", function(request, response)
         },
         function(err, text) {
           secondMessage.set("from", twilioNumber.get("phoneNumber"));
+          secondMessage.set("accountSid", twilioNumber.get("accountSid"));
           secondMessage.save();
 
           discussion.set("state", 2);
@@ -478,127 +446,38 @@ Parse.Cloud.define("startTree", function(request, response)
   var query = new Parse.Query(TwilioAccount);
   query.get(accountId, {
     success: function(parseTwilioAccount) {
-      console.log("found Account: #" + parseTwilioAccount.id);
+      var number   = new TwilioNumber();
+      number.set("userId", userId);
 
-      var number   = TwilioNumber.Factory(parseTwilioAccount);
       var outbound = OutboundMessage.Factory(parseTwilioAccount, "first");
 
       // sync number with twilio sub account outgoingCallerIds
       // then send SMS (and update outbound message entity)
       number.sync(function(parseTwilioNumber, needPurchase)
       {
-        if (!needPurchase) {
-          // we can directly send the SMS, a TwilioNumber entry
-          // was already present in the database.
-          sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
-            function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
-              // save OutboundMessage entity
-              outboundMessage.set("from", twilioNumber.get("phoneNumber"));
-              outboundMessage.save();
+        // we can directly send the SMS, a TwilioNumber entry
+        // was already present in the database.
+        sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
+          function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
+            // save OutboundMessage entity
+            outboundMessage.set("from", twilioNumber.get("phoneNumber"));
+            outboundMessage.set("accountSid", twilioNumber.get("accountSid"));
+            outboundMessage.save(null, {
+              success: function(outboundMessage)
+              {
+                // Done with /startTree call !
+                console.log("sendTwilioWelcomeSMS callback log: ");
+                console.log(text.to + " - " + text.form + " - " + text.body + " - " + err.message);
 
-              // Done with /startTree call !
-              console.log("sendTwilioWelcomeSMS callback log: ");
-              console.log(text.to + " - " + text.form + " - " + text.body + " - " + err.message);
-
-              response.success({
-                "outboundMessages": [outboundMessage, secondMessage],
-                "twilioNumber": twilioNumber,
-                "twilioAccount": twilioAccount,
-                "errorMessage": err && err.message ? err.message : false
-              });
-            });
-        }
-        else {
-          console.log("Must now purchase number at Twilio.");
-          console.log(parseTwilioNumber);
-
-          // USE apiClient here because we need to the master
-          // API key to query for potential available numbers.
-          // then purchase new number at Twilio
-          // then send SMS
-          // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-          var apiClient = new require('twilio')('AC262f226d31773bd3420fbae7241df466', '8595d459352de91e9c2a3d25a86ee6d6');
-          apiClient.availablePhoneNumbers("US")
-                      .local.list({
-            AreaCode: userAreaCode,
-            SmsEnabled: true,
-            ExcludeAllAddressRequired: true
-          },
-          function(err, searchResults) {
-            if (err) {
-              response.success({
-                "errorMessage": "Message : " + err.message
-              });
-              // need to return to avoid multiple
-              // response.success() calls
-              return false;
-            }
-
-            if (! searchResults.availablePhoneNumbers
-                ||searchResults.availablePhoneNumbers.length < 1) {
-
-              response.success({
-                "errorMessage": "Message : No numbers found with that area code"
-              });
-              // need to return to avoid multiple
-              // response.success() calls
-              return false;
-            }
-
-            // availablePhoneNumbers may return more than one entry, try
-            // each number one at a time until we have bought one with success.
-            //for (index in searchResults.availablePhoneNumbers) {
-
-            var testingPurchaseNumber = searchResults.availablePhoneNumbers[0];
-
-            apiClient.incomingPhoneNumbers.create({
-              PhoneNumber: testingPurchaseNumber.phoneNumber,
-              SmsUrl: "https://twiliotreebot.parseapp.com/handleFeedback?tree=" + testingPurchaseNumber.phoneNumber,
-              SmsMethod: "POST"
-            },
-            function(err, purchasedNumber) {
-
-              if (err) {
                 response.success({
-                  "errorMessage": "Message : " + err.message
+                  "outboundMessages": [outboundMessage, secondMessage],
+                  "twilioNumber": twilioNumber,
+                  "twilioAccount": twilioAccount,
+                  "errorMessage": false
                 });
-                // MUST try next number or response with error
-                return false;
               }
-
-              newPhoneNumber = purchasedNumber.phoneNumber.startsWith("+") ?
-                      purchasedNumber.phoneNumber.substr(1)
-                      : purchasedNumber.phoneNumber;
-
-              parseTwilioNumber.set("numberSid", purchasedNumber.sid);
-              parseTwilioNumber.set("phoneNumber", newPhoneNumber);
-              parseTwilioNumber.save();
-
-              sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
-                function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
-                  // save OutboundMessage entity
-                  outboundMessage.set("from", twilioNumber.get("phoneNumber"));
-                  outboundMessage.save();
-
-                  response.success({
-                    "outboundMessages": [outboundMessage, secondMessage],
-                    "twilioNumber": twilioNumber,
-                    "twilioAccount": twilioAccount,
-                    "errorMessage": false
-                  });
-                });
-            }); /* end twilioClient.incomingPhoneNumbers callback */
-
-            //} /* end for(numbers) block */
-
-            //console.log("Could not buy a number with: ");
-            //console.log(searchResults.availablePhoneNumbers);
-
-            //response.success({
-            //  "errorMessage": "Could not buy a Number !"
-            //});
-          }); /* end apiClient.availablePhoneNumbers callback */
-        } /* end if (!needPurchase) block */
+            });
+          });
       }); /* end number.sync() callback */
     },
     error: function(error) {
@@ -620,6 +499,9 @@ Parse.Cloud.define("handleTree", function(request, response)
   var smsTree        = "undefined" != typeof request.params.tree ?
           request.params.tree : "";
 
+  customerNumber = customerNumber.startsWith('+') ? customerNumber : ("+" + customerNumber);
+  twilioNumber   = twilioNumber.startsWith('+') ? twilioNumber : ("+" + twilioNumber);
+
   // save incoming message
   var incoming = new IncomingMessage();
   incoming.set("from", customerNumber);
@@ -636,6 +518,9 @@ Parse.Cloud.define("handleTree", function(request, response)
     success: function(feedbackDiscussion)
     {
       if (! feedbackDiscussion) {
+        customerNumber = customerNumber.startsWith('+') ? customerNumber : ("+" + customerNumber);
+        twilioNumber   = twilioNumber.startsWith('+') ? twilioNumber : ("+" + twilioNumber);
+
         // Customer could not be identified
         // need to create new TwilioAccount
         var account = new TwilioAccount();
@@ -700,4 +585,132 @@ Parse.Cloud.define("handleTree", function(request, response)
       });
     }
   });
+});
+
+Parse.Cloud.define("createNumber", function(request, response)
+{
+  var userId= "undefined" != typeof request.params.userId ?
+          request.params.userId : "";
+  var userArea= "undefined" != typeof request.params.userArea ?
+          request.params.userArea : "";
+
+  var createNumber = function(accountAtTwilio, userArea, callback)
+  {
+    // USE apiClient here because we need to the master
+    // API key to query for potential available numbers.
+    // then purchase new number at Twilio
+    // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
+    var apiClient = new require('twilio')('AC262f226d31773bd3420fbae7241df466', '8595d459352de91e9c2a3d25a86ee6d6');
+    apiClient.availablePhoneNumbers("US")
+                .local.list({
+      AreaCode: userArea,
+      SmsEnabled: true,
+      ExcludeAllAddressRequired: true
+    },
+    function(err, searchResults) {
+      if (err)
+        throw("Message : " + err.message);
+
+      if (! searchResults.availablePhoneNumbers
+          ||searchResults.availablePhoneNumbers.length < 1)
+        throw("Message : No numbers found with that area code");
+
+      var testingPurchaseNumber = searchResults.availablePhoneNumbers[0];
+
+      apiClient.incomingPhoneNumbers.create({
+        PhoneNumber: testingPurchaseNumber.phoneNumber,
+        SmsUrl: "https://twiliotreebot.parseapp.com/handleFeedback?tree=" + testingPurchaseNumber.phoneNumber,
+        SmsMethod: "POST"
+      },
+      function(err, purchasedNumber) {
+
+        if (err)
+          throw("Message : " + err.message);
+
+        newPhoneNumber = purchasedNumber.phoneNumber;
+
+        var parseTwilioNumber = new TwilioNumber();
+        parseTwilioNumber.set("userId", userId);
+        parseTwilioNumber.set("numberSid", purchasedNumber.sid);
+        parseTwilioNumber.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+        parseTwilioNumber.set("phoneNumber", newPhoneNumber);
+        parseTwilioNumber.save(null, {
+          success: function(parseTwilioNumber)
+          {
+            callback(parseTwilioNumber);
+          }
+        });
+      }); /* end twilioClient.incomingPhoneNumbers callback */
+    }); /* end apiClient.availablePhoneNumbers callback */
+  };
+
+  // Create the user account on twilio
+  // then create a Number and link to user.
+  var query = new Parse.Query(Parse.User);
+  query.get(userId, {
+    success: function(currentUser)
+    {
+      twilioClient.accounts.list({
+        friendlyName: currentUser.get("username")
+      },
+      function(err, data) {
+        if (!data || !data.accounts || !data.accounts.length) {
+          // need to create account.
+          twilioClient.accounts.create(
+            {friendlyName: currentUser.get("username")},
+            function(err, twilioAccount) {
+
+              try {
+                createNumber(twilioAccount, userArea,
+                  function(twilioNumber)
+                  {
+                    response.success({"twilioNumber": twilioNumber});
+                  });
+              }
+              catch (e) { response.error({"errorMessage": e}) };
+            });
+        }
+        else {
+          // account already exists.
+          try {
+            createNumber(data.accounts[0], userArea,
+              function(twilioNumber)
+              {
+                response.success({"twilioNumber": twilioNumber});
+              });
+          }
+          catch (e) { response.error({"errorMessage": e}) };
+        }
+      });
+    }
+  });
+});
+
+Parse.Cloud.define("validateAreaCode", function(request, response)
+{
+  var code= "undefined" != typeof request.params.userArea ?
+          request.params.userArea : "";
+
+  // Check for available phone numbers in
+  // the given Area code.
+  // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
+  var apiClient = new require('twilio')('AC262f226d31773bd3420fbae7241df466', '8595d459352de91e9c2a3d25a86ee6d6');
+  apiClient.availablePhoneNumbers("US")
+              .local.list({
+    AreaCode: code,
+    SmsEnabled: true,
+    ExcludeAllAddressRequired: true
+  },
+  function(err, searchResults) {
+
+    if (err)
+      response.error(err.message);
+
+    else if (! searchResults.availablePhoneNumbers
+        || searchResults.availablePhoneNumbers.length < 1)
+      response.error("No numbers found with that area code");
+
+    else if (searchResults.availablePhoneNumbers.length >= 1)
+      response.success({"result": true, "errorMessage": false});
+  }); /* end apiClient.availablePhoneNumbers callback */
 });

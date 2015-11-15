@@ -1,0 +1,58 @@
+
+<%- include header -%>
+
+    <div class="right">
+        <section>
+            <div class="title align-center">
+                <h2>Update your Settings</h2>
+                <p>This page allows you to update your Settings.</p>
+            </div>
+            <div class="wide">
+                <div class="form-box">
+                    <% if (successMessage) { %>
+                    <div id="success">
+                        <div class="green align-center">
+                            <p><%= successMessage %></p>
+                        </div>
+                    </div>
+                    <% } %>
+                    <% if (errorMessage) { %>
+                    <div id="error">
+                        <div>
+                            <p><b>No numbers Available for this area code!</b></p>
+                        </div>
+                    </div>
+                    <% } %>
+
+                    <form id="update-settings" name="update-settings" action="/settings" method="post" novalidate="novalidate">
+                        <div class="form-row">
+                            <label>Office Name</label>
+                            <input type="text" id="firstName" name="officeName"
+                                   size="30" value="<%= settings.officeName %>"
+                                   required="" class="text login_input">
+                        </div>
+
+                        <div class="form-row">
+                            <label>Area Code</label>
+                            <input type="text" id="firstName" name="areaCode"
+                                   size="30" value="<%= settings.areaCode %>"
+                                   required="" class="text login_input">
+                        </div>
+
+                        <div class="form-row">
+                            <% if (needsNumber) { %>
+                            <input type="hidden" name="doCreateNumber" value="1" />
+                            <% } %>
+                            <input id="account-submit" type="submit" name="submit" value="Save Settings" class="btn btn-wide">
+                        </div>
+                    </form>
+                </div>
+                <div class="shadow"></div>
+                <div class="meta align-center">
+                    <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+<%- include footer -%>

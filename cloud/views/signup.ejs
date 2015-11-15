@@ -28,14 +28,14 @@
                         </div>
                         <div class="form-row">
                             <label>Area Code <span class="required">*</span></label>
-                            <input type="text" name="area" id="phone" size="30" value="" class="text login_input">
+                            <input type="text" name="area" id="areacode" size="30" value="" class="text login_input">
                         </div>
                         <div class="form-row">
                             <label>Password</label>
                             <input type="password" name="password" id="password" size="30" value="" class="text login_input">
                         </div>
                         <div class="form-row">
-                            <input id="submit" type="submit" name="submit" value="Signup and get started!" class="btn btn-wide">
+                            <input type="submit" value="Signup and get started!" class="btn btn-wide">
                         </div>
                         <div class="align-center">We take privacy seriously.</div>
                     </form>
@@ -47,5 +47,63 @@
             </div>
         </section>
     </div>
+
+<script>
+$(document).ready(function()
+{
+    $("#signup").submit(function(e)
+    {
+        e.preventDefault();
+
+        if ($("#error").length)
+            $("#error").remove();
+
+        var code = $("#areacode").val();
+
+        $.ajax({
+            context: this,
+            url: "/validateAreaCode",
+            type: "post",
+            data: {code: code},
+            success:function(d) {
+                if (d !== "OK") {
+                    var err = $("<div id='error'><div><p>" + d + "</p></div></div>");
+                    $(".form-box").prepend(err);
+                }
+                else
+                    this.submit();
+            }
+        });
+        return false;
+    });
+/*
+
+    // make sure phone numbers are available for this
+    // area code, if not alert user.
+    $("#submit").click(function(e)
+    {
+        if ($("#error").length)
+            $("#error").remove();
+
+        var returning = true;
+        var code = $("#areacode").val();
+        $.ajax({
+            url: "/validateAreaCode",
+            type: "post",
+            data: {code: code},
+            success:function(d) {
+                if (d !== "OK") {
+                    var err = $("<div id='error'><div><p>" + d + "</p></div></div>");
+                    $(".form-box").prepend(err);
+
+                    e.preventDefault();
+                    returning = false;
+                }
+            }
+        });
+    });
+*/
+});
+</script>
 
 <%- include footer -%>

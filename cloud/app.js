@@ -159,6 +159,39 @@ app.get('/terms-and-conditions', function(request, response)
   response.render('terms', {"currentUser": currentUser});
 });
 
+/**
+ * GET /settings
+ * describes the homepage GET request.
+ * this handler will render the authentication
+ * template if no session is available or render
+ * the homepage template for logged users.
+ **/
+app.get('/settings', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser) {
+    response.redirect("/signin");
+  }
+  else {
+
+    var settings = {
+      "officeName": currentUser.get("officeName"),
+      "areaCode": currentUser.get("areaCode")};
+
+    var needsNumber = request.query.needsNumber ? request.query.needsNumber == 1
+                    : false;
+
+    var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
+    response.render('settings', {
+      "currentUser": currentUser,
+      "errorMessage": errorMessage,
+      "successMessage": false,
+      "settings": settings,
+      "needsNumber": needsNumber
+    });
+  }
+});
+
 
 /*******************************************************************************
  * HTTP POST requests handlers for TwilioTreeBot
@@ -212,40 +245,100 @@ app.post('/signup', function(request, response)
   var office   = request.body.office;
   var area     = request.body.area;
 
-  var currentUser = new Parse.User();
-  currentUser.set("username", username);
-  currentUser.set("email", email);
-  currentUser.set("password", password);
-  currentUser.set("officeName", office);
-  currentUser.set("areaCode", area);
+  errors = [];
+  if (!username || !username.length)
+    errors.push("The Email adress may not be empty.");
 
-  currentUser.signUp(null, {
-    success: function(currentUser) {
-      // user registration was successfully done
-      // we can now safely save the session token
-      // and redirect the user to the homepage
+  if (!email || !email.length)
+    errors.push("The Email adress may not be empty.");
 
-      request.session.loggedState  = true;
-      request.session.sessionToken = currentUser.getSessionToken();
+  if (!password || !password.length)
+    errors.push("The Password may not be empty.");
 
-      response.redirect("/");
+  if (!office || !office.length)
+    errors.push("The Office name may not be empty.");
+
+  if (!area || !area.length)
+    errors.push("The Area code may not be empty.");
+
+  if (errors.length)
+    // refresh with error messages displayed
+    response.render("signup", {
+      "currentUser": false,
+      "errorMessage": errors.join(" ", errors)});
+  else {
+    // sign-up user !
+    var currentUser = new Parse.User();
+    currentUser.set("username", username);
+    currentUser.set("email", email);
+    currentUser.set("password", password);
+    currentUser.set("officeName", office);
+    currentUser.set("areaCode", area);
+
+    currentUser.signUp(null, {
+      success: function(currentUser) {
+        // user registration was successfully done
+        // we can now safely save the session token
+        // and redirect the user to the homepage
+
+        request.session.loggedState  = true;
+        request.session.sessionToken = currentUser.getSessionToken();
+
+        Parse.Cloud.run("createNumber", {
+          userId: currentUser.id,
+          userArea: currentUser.get("areaCode")
+        }, {
+          success: function (cloudResponse)
+          {
+            response.redirect("/");
+          },
+          error: function (cloudResponse)
+          {
+            // could not create number but twilio account should be present!
+            uri = "/settings?needsNumber=1&errorMessage=" + escape(cloudResponse.errorMessage);
+            response.redirect(uri);
+          }
+        });
+      },
+      error: function(currentUser, error) {
+        request.session = null;
+
+        response.render('signup', {
+          "currentUser": false,
+          "errorMessage": error.message});
+      }
+    });
+  }
+});
+
+/**
+ * POST /validateAreaCode
+ * this POST handler checks for available
+ * phone numbers for the given area code.
+ * Parse CloudCode Function "validateAreaCode"
+ * responses with an error if no available
+ * numbers are found.
+ **/
+app.post("/validateAreaCode", function(request, response)
+{
+  var code = request.body.code;
+
+  Parse.Cloud.run("validateAreaCode", {
+    userArea: code
+  }, {
+    success: function (cloudResponse)
+    {
+      response.send("OK");
     },
-    error: function(currentUser, error) {
-      request.session = null;
-
-      response.render('signup', {
-        "currentUser": false,
-        "errorMessage": error.message});
+    error: function (cloudResponse)
+    {
+      response.send("Error: " + cloudResponse.message);
     }
   });
 });
 
 /**
  * POST /sendRequest
- * describes the homepage GET request.
- * this handler will render the authentication
- * template if no session is available or render
- * the homepage template for logged users.
  **/
 app.post('/sendRequest', function(request, response)
 {
@@ -298,6 +391,7 @@ app.post('/sendRequest', function(request, response)
           // then initiate /startTree API request.
           var twilioAccount = cloudResponse.twilioAccount;
           Parse.Cloud.run("startTree", {
+            userId: currentUser.id,
             accountId: twilioAccount.id,
             userAreaCode: currentUser.get("areaCode")
           },
@@ -314,7 +408,7 @@ app.post('/sendRequest', function(request, response)
                   "currentUser": currentUser,
                   "errorMessage": false,
                   "successMessage": "Congratulations ! You have sent a Feedback "
-                                  + "Request to your customer '" + twilioAccount.get("firstname") + "'."
+                                  + "Request to your customer '" + twilioAccount.get("firstName") + "'."
                 });
               }
             },
@@ -343,6 +437,11 @@ app.post('/sendRequest', function(request, response)
   } /* end if (!currentUser) block */
 });
 
+/**
+ * POST /handleFeedback
+ * This URL is called by Twilio when an Incoming Message
+ * enters for one of the created subaccounts.
+ **/
 app.post('/handleFeedback', function(request, response)
 {
   var tree = request.query.tree;
@@ -389,6 +488,55 @@ app.post('/handleFeedback', function(request, response)
       }
     }
   });
+});
+
+/**
+ * POST /settings
+ **/
+app.post('/settings', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser)
+    // no session available => back to login
+    response.redirect("/signin");
+  else {
+    var officeName = request.body.officeName;
+    var areaCode   = request.body.areaCode;
+    var needsNumber = request.body.doCreateNumber;
+    var settings    = {"officeName": officeName, "areaCode": areaCode};
+
+    if (needsNumber) {
+      Parse.Cloud.run("createNumber", {
+        userId: currentUser.id,
+        userArea: areaCode
+      }, {
+        success: function (cloudResponse)
+        {
+          var myPhone = cloudResponse.twilioNumber.get("phoneNumber");
+          response.render('settings', {
+            "currentUser": currentUser,
+            "errorMessage": false,
+            "successMessage": "You Feedback Phone number is: " + myPhone,
+            "settings": settings,
+            "needsNumber": needsNumber});
+        },
+        error: function (cloudResponse)
+        {
+          // could not create number.
+          uri = "/settings?needsNumber=1&errorMessage=" + escape(cloudResponse.errorMessage);
+          response.redirect(uri);
+        }
+      });
+    }
+    else {
+      response.render('settings', {
+        "currentUser": currentUser,
+        "errorMessage": false,
+        "successMessage": "Settings saved successfully!",
+        "settings": settings,
+        "needsNumber": needsNumber});
+    }
+  } /* end if (!currentUser) block */
 });
 
 // Attach the Express app to Cloud Code.
