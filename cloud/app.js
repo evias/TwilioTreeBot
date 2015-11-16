@@ -137,7 +137,8 @@ app.get('/signup', function(request, response)
       "username": "",
       "email": "",
       "office": "",
-      "area": ""
+      "area": "",
+      "country": ""
     };
     response.render('signup', {
       "currentUser": false,
@@ -285,9 +286,11 @@ app.post('/signin', function(request, response)
 app.post("/validateAreaCode", function(request, response)
 {
   var code = request.body.code;
+  var country = request.body.country;
 
   Parse.Cloud.run("validateAreaCode", {
-    userArea: code
+    userArea: code,
+    country: country
   }, {
     success: function (cloudResponse)
     {
@@ -313,20 +316,19 @@ app.post('/signup', function(request, response)
   var email    = request.body.username;
   var password = request.body.password;
   var office   = request.body.office;
+  var country  = request.body.country;
   var area     = request.body.area;
 
   var formValues = {
     "username": username,
     "email": email,
     "office": office,
-    "area": area
+    "area": area,
+    "country": country
   };
 
   errors = [];
-  if (!username || !username.length)
-    errors.push("The Email adress may not be empty.");
-
-  if (!email || !email.length)
+  if (!email || !email.length || !username || !username.length)
     errors.push("The Email adress may not be empty.");
 
   if (!password || !password.length)
@@ -337,6 +339,9 @@ app.post('/signup', function(request, response)
 
   if (!area || !area.length)
     errors.push("The Area code may not be empty.");
+
+  if (!country || !country.length)
+    errors.push("The Country may not be empty.");
 
   // check officeName unicity
   // field username is automatically unique due to
@@ -363,6 +368,7 @@ app.post('/signup', function(request, response)
         currentUser.set("email", email);
         currentUser.set("password", password);
         currentUser.set("officeName", office);
+        currentUser.set("countryISO", country);
         currentUser.set("areaCode", area);
 
         currentUser.signUp(null, {
@@ -376,7 +382,8 @@ app.post('/signup', function(request, response)
 
             Parse.Cloud.run("createNumber", {
               userId: currentUser.id,
-              userArea: currentUser.get("areaCode")
+              userArea: currentUser.get("areaCode"),
+              country: currentUser.get("countryISO")
             }, {
               success: function (cloudResponse)
               {

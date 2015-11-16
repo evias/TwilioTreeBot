@@ -231,38 +231,43 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
       var msgText        = incomingMessage.get("body");
       var feedbackState  = feedbackDiscussion.get("state");
       var accountId      = feedbackDiscussion.get("accountId");
+      var numberId       = feedbackDiscussion.get("numberId");
 
       var account = new Parse.Query(TwilioAccount);
       account.get(accountId, {
-        success: function(twilioAccount)
+      success: function(twilioAccount)
+      {
+        var twilioNumber = new Parse.Query(TwilioNumber);
+        twilioNumber.get(numberId, {
+        success: function(twilioNumber)
         {
           switch (feedbackState) {
-            // state 2 is after sending Welcome SMSs (/startTree)
-            default:
-            case 2:
-              return FeedbackService.answerToYesNo(twilioAccount,
-                      incomingMessage, feedbackDiscussion, callback);
+          // state 2 is after sending Welcome SMSs (/startTree)
+          default:
+          case 2:
+            return FeedbackService.answerToYesNo(twilioAccount, twilioNumber,
+                    incomingMessage, feedbackDiscussion, callback);
 
-            // No interpretation needed anymore, simply Thank
-            // the customer
-            case 3:
-            case 4:
-              return FeedbackService.answerThanks(twilioAccount,
-                      incomingMessage, feedbackDiscussion, callback);
+          // No interpretation needed anymore, simply Thank
+          // the customer
+          case 3:
+          case 4:
+            return FeedbackService.answerThanks(twilioAccount, twilioNumber,
+                    incomingMessage, feedbackDiscussion, callback);
 
-            // Discussion initiated by the customer, thank
-            // him for the feedback.
-            case 0:
-              return FeedbackService.answerFeedback(twilioAccount,
-                      incomingMessage, feedbackDiscussion, callback);
-          }
-        },
-        error: function(err)
-        {
+          // Discussion initiated by the customer, thank
+          // him for the feedback.
+          case 0:
+            return FeedbackService.answerFeedback(twilioAccount, twilioNumber,
+                    incomingMessage, feedbackDiscussion, callback);
         }
-      });
+        }});
+      },
+      error: function(err)
+      {
+      }});
     },
-    answerToYesNo: function(twilioAccount, incomingMessage, feedbackDiscussion, callback)
+    answerToYesNo: function(twilioAccount, twilioNumber, incomingMessage, feedbackDiscussion, callback)
     {
       var accountId = feedbackDiscussion.get("accountId");
       var msgText   = incomingMessage.get("body");
@@ -281,11 +286,13 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
+      outbound1.set("accountSid", twilioNumber.get("accoundSid"));
       outbound1.save();
 
       if (outboundType1 != "unsupported") {
         var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
         outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
+        outbound2.set("accountSid", twilioNumber.get("accoundSid"));
         outbound2.save();
 
         // NEXT STATE
@@ -302,7 +309,7 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
         // interpret a correct Yes/No.
         return outbound1.send(callback);
     },
-    answerThanks: function(twilioAccount, incomingMessage, feedbackDiscussion, callback)
+    answerThanks: function(twilioAccount, twilioNumber, incomingMessage, feedbackDiscussion, callback)
     {
       var accountId = feedbackDiscussion.get("accountId");
       var msgText   = incomingMessage.get("body");
@@ -311,10 +318,12 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
+      outbound1.set("accountSid", twilioNumber.get("accoundSid"));
       outbound1.save();
 
       var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
       outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
+      outbound2.set("accountSid", twilioNumber.get("accoundSid"));
       outbound2.save();
 
       // NEXT STATE - Discusion DONE
@@ -325,7 +334,7 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
         outbound2.send(callback);
       });
     },
-    answerFeedback: function(twilioAccount, incomingMessage, feedbackDiscussion, callback)
+    answerFeedback: function(twilioAccount, twilioNumber, incomingMessage, feedbackDiscussion, callback)
     {
       var accountId = feedbackDiscussion.get("accountId");
       var msgText   = incomingMessage.get("body");
@@ -334,10 +343,12 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
+      outbound1.set("accountSid", twilioNumber.get("accoundSid"));
       outbound1.save();
 
       var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
       outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
+      outbound2.set("accountSid", twilioNumber.get("accoundSid"));
       outbound2.save();
 
       // NO UPDATE OF STATE BECAUSE THE
@@ -390,6 +401,8 @@ Parse.Cloud.define("createNumber", function(request, response)
           request.params.userId : "";
   var userArea= "undefined" != typeof request.params.userArea ?
           request.params.userArea : "";
+  var country = "undefined" != typeof request.params.country ?
+          request.params.country : "US";
 
   /**
    * The createNumber function will attempt to create
@@ -403,11 +416,11 @@ Parse.Cloud.define("createNumber", function(request, response)
    * @param   callable                      callback
    * @throws  string on error.
    **/
-  var createNumber = function(accountAtTwilio, userArea, callback)
+  var createNumber = function(accountAtTwilio, userArea, country, callback)
   {
     // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
     var apiClient   = new require('twilio')("AC262f226d31773bd3420fbae7241df466", "8595d459352de91e9c2a3d25a86ee6d6");
-    apiClient.availablePhoneNumbers("US")
+    apiClient.availablePhoneNumbers(country)
                 .local.list({
       AreaCode: userArea,
       SmsEnabled: true,
@@ -480,7 +493,7 @@ Parse.Cloud.define("createNumber", function(request, response)
               // create a Phone Number at Twilio and save
               // it as a TwilioNumber instance in our Parse app.
               try {
-                createNumber(twilioAccount, userArea,
+                createNumber(twilioAccount, userArea, country,
                   function(twilioNumber)
                   {
                     response.success({"twilioNumber": twilioNumber});
@@ -506,14 +519,16 @@ Parse.Cloud.define("createNumber", function(request, response)
  **/
 Parse.Cloud.define("validateAreaCode", function(request, response)
 {
-  var code= "undefined" != typeof request.params.userArea ?
+  var code = "undefined" != typeof request.params.userArea ?
           request.params.userArea : "";
+  var country = "undefined" != typeof request.params.country ?
+          request.params.country : "US";
 
   // Check for available phone numbers in
   // the given Area code.
   // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
   var apiClient   = new require('twilio')("AC262f226d31773bd3420fbae7241df466", "8595d459352de91e9c2a3d25a86ee6d6");
-  apiClient.availablePhoneNumbers("US")
+  apiClient.availablePhoneNumbers(country)
               .local.list({
     AreaCode: code,
     SmsEnabled: true,

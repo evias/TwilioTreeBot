@@ -27,6 +27,13 @@
                             <input type="text" name="username" id="username" size="30" value="<%= formValues.username %>" required="" class="text login_input">
                         </div>
                         <div class="form-row">
+                            <label>Country <span class="required">*</span></label>
+                            <select name="country" id="country">
+                                <option value="US">USA</option>
+                                <option value="CA">Canada</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
                             <label>Area Code <span class="required">*</span></label>
                             <input type="text" name="area" id="areacode" size="30" value="<%= formValues.area %>" class="text login_input">
                         </div>
@@ -64,12 +71,13 @@ $(document).ready(function()
             $("#error").remove();
 
         var code = $("#areacode").val();
+        var country = $("#country").val();
 
         $.ajax({
             context: this,
             url: "/validateAreaCode",
             type: "post",
-            data: {code: code},
+            data: {code: code, country: country},
             success:function(d) {
                 if (d !== "OK") {
                     var err = $("<div id='error'><div><p>" + d + "</p></div></div>");
