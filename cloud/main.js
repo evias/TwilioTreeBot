@@ -767,44 +767,70 @@ Parse.Cloud.define("handleTree", function(request, response)
     success: function(feedbackDiscussion)
     {
       if (! feedbackDiscussion) {
-        // Customer could not be identified
-        // need to create new TwilioAccount
-        var account = new TwilioAccount();
-        account.set("firstName", "No Name");
-        account.set("phoneNumber", customerNumber);
-        account.save({
-        success:function(twilioAccount)
-        {
-          // can now save the discussion
-          var discussion = new FeedbackDiscussion();
-          discussion.set("accountId", twilioAccount.id);
-          discussion.set("twilioNumber", twilioNumber);
-          discussion.set("customerNumber", customerNumber);
-          discussion.set("state", 0);
-          discussion.save({
-          success: function(feedbackDiscussion)
-          {
-            incoming.set("discussionId", feedbackDiscussion.id);
-            incoming.save();
+        // feedbackDiscussion could not be identified.
 
-            FeedbackService.delegateService(incoming, feedbackDiscussion,
-            function(err, text, outboundMessage)
+        // TwilioNumber contains data about User (userId)
+        // and numberId (for the discussion)
+        var theNumber = new Parse.Query(TwilioNumber);
+        theNumber.equalTo("phoneNumber", twilioNumber);
+        theNumber.first({
+        success: function(theNumber)
+        {
+          var userId   = theNumber.get("userId");
+          var numberId = theNumber.id;
+
+          // load the User to be able to set a URL
+          // on the TwilioAccount which we will be saving.
+          var theUser = new Parse.Query(Parse.User);
+          theUser.get(userId, {
+          success: function(theUser)
+          {
+            // Customer could not be identified
+            // need to create new TwilioAccount
+            var account = new TwilioAccount();
+            account.set("firstName", "No Name");
+            account.set("phoneNumber", customerNumber);
+            account.set("userId", userId);
+            account.set("url", theUser.get("defaultURL"));
+            account.save({
+            success:function(twilioAccount)
             {
-              if (text && outboundMessage)
-                  response.success({
-                    "result": true,
-                    "errorMessage": false
-                  });
-              else
-                  response.success({
-                    "result": false,
-                    "errorMessage": err.message
-                  });
-            });
-          }}); /* end save discussion */
-        }}); /* end save account */
+              // can now save the FeedbackDiscussion
+              var discussion = new FeedbackDiscussion();
+              discussion.set("accountId", twilioAccount.id);
+              discussion.set("numberId", numberId);
+              discussion.set("twilioNumber", twilioNumber);
+              discussion.set("customerNumber", customerNumber);
+              discussion.set("state", 0);
+              discussion.save({
+              success: function(feedbackDiscussion)
+              {
+                incoming.set("discussionId", feedbackDiscussion.id);
+                incoming.save();
+
+                // send OutboundMessage according to interpreted
+                // IncomingMessage entry.
+                FeedbackService.delegateService(incoming, feedbackDiscussion,
+                function(err, text, outboundMessage)
+                {
+                  if (text && outboundMessage)
+                      response.success({
+                        "result": true,
+                        "errorMessage": false
+                      });
+                  else
+                      response.success({
+                        "result": false,
+                        "errorMessage": err.message
+                      });
+                });
+              }}); /* end save discussion */
+            }}); /* end save account */
+          }}); /* end theUser.get() */
+        }}); /* end theNumber.first() */
       }
       else {
+        // feedbackDiscussion identified.
         incoming.set("discussionId", feedbackDiscussion.id);
         incoming.save();
 
