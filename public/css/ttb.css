@@ -39,3 +39,15 @@ limitations under the License.
 #success p, #error p {
     word-wrap: break-word;
 }
+
+table th {
+    text-align: left;
+}
+
+table tr {
+    font-size: 14px;
+}
+
+table tr em {
+    font-size: 12px;
+}

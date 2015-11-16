@@ -174,12 +174,12 @@ app.get('/terms-and-conditions', function(request, response)
 });
 
 /**
- * GET /settings
- * describes the settings GET request.
+ * GET /my-account
+ * describes the my-account GET request.
  * this handler loads the currentUser's settings
  * and displays them in the settings views.
  **/
-app.get('/settings', function(request, response)
+app.get('/my-account', function(request, response)
 {
   var currentUser = Parse.User.current();
   if (! currentUser) {
@@ -194,9 +194,43 @@ app.get('/settings', function(request, response)
       "emailAddress": currentUser.get("username")};
 
     var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
-    response.render('settings', {
+    response.render('my-account', {
       "currentUser": currentUser,
       "settings": settings
+    });
+  }
+});
+
+/**
+ * GET /my-feedback
+ * describes the my-feedback GET request.
+ * this handler loads the currentUser's feedback
+ * received. (IncomingMessage dictionary)
+ **/
+app.get('/my-feedback', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser) {
+    response.redirect("/signin");
+  }
+  else {
+
+    // load IncomingMessage entries linked to
+    // currentUser.twilioPhoneNumber
+    Parse.Cloud.run("listFeedback", {
+      userId: currentUser.id
+    }, {
+      success: function (cloudResponse)
+      {
+        response.render('my-feedback', {
+          "currentUser": currentUser,
+          "myMessages": cloudResponse.myMessages
+        });
+      },
+      error: function (cloudResponse)
+      {
+        response.send("Error: " + cloudResponse.message);
+      }
     });
   }
 });

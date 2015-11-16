@@ -1,0 +1,46 @@
+
+<%- include header -%>
+
+    <div class="right">
+        <section>
+            <div class="title align-center">
+                <h2>Your Feedback</h2>
+                <p>This page allows you to view all your Incoming Feedback.</p>
+            </div>
+            <div class="wide">
+                <div class="form-box">
+                <% if (! myMessages.length) { %>
+                    <div id="#error">
+                        <div><p>You didn't receive any Feedback yet !</div>
+                    </div>
+                <% } else { %>
+                    <table border="0">
+                        <thead>
+                            <th>Customer</th>
+                            <th>Feedback</th>
+                        </thead>
+                        <tbody>
+                    <% for (var i = 0; i < myMessages.length; i++) {
+                        var dateCreated = new Date(myMessages[i].get("createdAt"));
+                        var dateString  = dateCreated.getDate() + "/"
+                                        + dateCreated.getMonth() + "/"
+                                        + dateCreated.getFullYear();
+                        %>
+                        <tr>
+                            <td style="width: 30%;"><%= myMessages[i].get("customerName") %><br /><em><%= myMessages[i].get("from") %></em><br /><em><%= dateString %></em></td>
+                            <td style="width: 70%;"><%= myMessages[i].get("body") %></td>
+                        </tr>
+                    <% } %>
+                        </tbody>
+                    </table>
+                <% } %>
+                </div>
+                <div class="shadow"></div>
+                <div class="meta align-center">
+                    <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+<%- include footer -%>

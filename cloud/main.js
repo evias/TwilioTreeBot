@@ -612,7 +612,7 @@ Parse.Cloud.define("syncAccount", function(request, response)
             response.success({"twilioAccount": twilioAccount});
           });
       }
-      catch (e) { console.log("ERROR IS: "); console.log(e); response.error(e) };
+      catch (e) { response.error(e) };
     }
   });
 });
@@ -806,6 +806,7 @@ Parse.Cloud.define("handleTree", function(request, response)
               success: function(feedbackDiscussion)
               {
                 incoming.set("discussionId", feedbackDiscussion.id);
+                incoming.set("customerName", "No Name");
                 incoming.save();
 
                 // send OutboundMessage according to interpreted
@@ -831,10 +832,17 @@ Parse.Cloud.define("handleTree", function(request, response)
       }
       else {
         // feedbackDiscussion identified.
-        incoming.set("discussionId", feedbackDiscussion.id);
-        incoming.save();
+        // load account by ID then set discussionId
+        // and customerName on IncomingMessage entry.
+        var twilioAccount = new Parse.Query(TwilioAccount);
+        twilioAccount.get(feedbackDiscussion.get("accountId"), {
+        success: function(twilioAccount)
+        {
+          incoming.set("discussionId", feedbackDiscussion.id);
+          incoming.set("customerName", twilioAccount.get("firstName"));
+          incoming.save();
 
-        FeedbackService.delegateService(incoming, feedbackDiscussion,
+          FeedbackService.delegateService(incoming, feedbackDiscussion,
           function(err, text, outboundMessage)
           {
             if (text && outboundMessage)
@@ -848,6 +856,7 @@ Parse.Cloud.define("handleTree", function(request, response)
                 "errorMessage": err.message
               });
           });
+        }});
       }
     },
     error: function(err) {
@@ -857,4 +866,46 @@ Parse.Cloud.define("handleTree", function(request, response)
       });
     }
   });
+});
+
+/**
+ * The listFeedback CloudCode Function describes the Feedback getter.
+ * This function can be called to retrieve a list of IncomingMessage
+ * for the given userId.
+ * The list ordered by DESCENDING date of creation.
+ **/
+Parse.Cloud.define("listFeedback", function(request, response)
+{
+    var userId = "undefined" != typeof request.params.userId ?
+                request.params.userId : "";
+
+    // validate userId by loading Parse.User
+    // then load IncomingMessage entries
+    var currentUser = new Parse.Query(Parse.User);
+    currentUser.get(userId, {
+    success: function(currentUser)
+    {
+      if (! currentUser)
+        response.error("Invalid userId provided.");
+      else {
+        var myMessages = new Parse.Query(IncomingMessage)
+        myMessages.equalTo("to", currentUser.get("twilioPhoneNumber"));
+        myMessages.descending("createdAt");
+        myMessages.find({
+          success: function(myMessages)
+          {
+            if (! myMessages)
+              myMessages = [];
+
+            response.success({
+              "myMessages": myMessages
+            });
+          }
+        });
+      }
+    },
+    error: function(error)
+    {
+        response.error("User could not be loaded: " + error.message);
+    }});
 });
