@@ -25,7 +25,7 @@ limitations under the License.
 require('cloud/app.js');
 
 // PROD
-var twilioClient = require('twilio')('SK30c19224c46a68b968c3afecbd0e9fb8', 'Tr8kQmo6ta7aUxkp4JlKB1E16jSK842P');
+var twilioClient = require('twilio')("SK30c19224c46a68b968c3afecbd0e9fb8", "Tr8kQmo6ta7aUxkp4JlKB1E16jSK842P");
 
 /*******************************************************************************
  * Models classes definition for TwilioTreeBot
@@ -406,7 +406,7 @@ Parse.Cloud.define("createNumber", function(request, response)
   var createNumber = function(accountAtTwilio, userArea, callback)
   {
     // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-    var apiClient = new require('twilio')('AC262f226d31773bd3420fbae7241df466', '8595d459352de91e9c2a3d25a86ee6d6');
+    var apiClient   = new require('twilio')("AC262f226d31773bd3420fbae7241df466", "8595d459352de91e9c2a3d25a86ee6d6");
     apiClient.availablePhoneNumbers("US")
                 .local.list({
       AreaCode: userArea,
@@ -512,7 +512,7 @@ Parse.Cloud.define("validateAreaCode", function(request, response)
   // Check for available phone numbers in
   // the given Area code.
   // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-  var apiClient = new require('twilio')('AC262f226d31773bd3420fbae7241df466', '8595d459352de91e9c2a3d25a86ee6d6');
+  var apiClient   = new require('twilio')("AC262f226d31773bd3420fbae7241df466", "8595d459352de91e9c2a3d25a86ee6d6");
   apiClient.availablePhoneNumbers("US")
               .local.list({
     AreaCode: code,
@@ -872,7 +872,7 @@ Parse.Cloud.define("handleTree", function(request, response)
  * The listFeedback CloudCode Function describes the Feedback getter.
  * This function can be called to retrieve a list of IncomingMessage
  * for the given userId.
- * The list ordered by DESCENDING date of creation.
+ * The list is ordered by DESCENDING date of creation.
  **/
 Parse.Cloud.define("listFeedback", function(request, response)
 {

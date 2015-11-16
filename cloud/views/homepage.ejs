@@ -69,4 +69,18 @@
         </section>
     </div>
 
+<script>
+$(document).ready(function()
+{
+    $("#feedback-request").submit(function(e)
+    {
+        $("#account-submit").css({
+            "background": "#fff url(/images/ajax-loading.gif) no-repeat center center"
+        });
+        $("#account-submit").val("");
+        return true;
+    });
+});
+</script>
+
 <%- include footer -%>
