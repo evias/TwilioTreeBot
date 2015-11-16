@@ -634,16 +634,6 @@ Parse.Cloud.define("startTree", function(request, response)
 
   var sendTwilioWelcomeSMS = function(outboundMessage, twilioNumber, twilioAccount, callback)
     {
-      // We are now starting the Feedback discussion
-      // between twilioAccount and twilioNumber.
-      var discussion = new FeedbackDiscussion();
-      discussion.set("numberId", twilioNumber.id);
-      discussion.set("accountId", twilioAccount.id);
-      discussion.set("twilioNumber", twilioNumber.get("phoneNumber"));
-      discussion.set("customerNumber", twilioAccount.get("phoneNumber"));
-      discussion.set("state", 1);
-      discussion.save();
-
       // Send first SMS (outboundMessage parameter)
       twilioClient.accounts(twilioNumber.get("accountSid"))
                   .sms.messages.create(
@@ -653,6 +643,10 @@ Parse.Cloud.define("startTree", function(request, response)
         body: outboundMessage.get("msgText")
       },
       function(err, text) {
+        if (err)
+          // general Twilio API error.
+          throw(err.message);
+
         // Send second SMS
         var secondMessage = OutboundMessage.Factory(twilioAccount, "second");
         twilioClient.accounts(twilioNumber.get("accountSid"))
@@ -663,10 +657,22 @@ Parse.Cloud.define("startTree", function(request, response)
           body: secondMessage.get("msgText")
         },
         function(err, text) {
+          if (err)
+            // general Twilio API error.
+            throw(err.message);
+
           secondMessage.set("from", twilioNumber.get("phoneNumber"));
           secondMessage.set("accountSid", twilioNumber.get("accountSid"));
           secondMessage.save();
 
+          // We are now starting the Feedback discussion
+          // between twilioAccount and twilioNumber.
+          // (Feedback Request SMS are now sent).
+          var discussion = new FeedbackDiscussion();
+          discussion.set("numberId", twilioNumber.id);
+          discussion.set("accountId", twilioAccount.id);
+          discussion.set("twilioNumber", twilioNumber.get("phoneNumber"));
+          discussion.set("customerNumber", twilioAccount.get("phoneNumber"));
           discussion.set("state", 2);
           discussion.save();
 
@@ -691,32 +697,36 @@ Parse.Cloud.define("startTree", function(request, response)
       {
         // we can directly send the SMS, a TwilioNumber entry
         // was already present in the database.
-        sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
-          function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
-            // save OutboundMessage entity
-            outboundMessage.set("from", twilioNumber.get("phoneNumber"));
-            outboundMessage.set("accountSid", twilioNumber.get("accountSid"));
-            outboundMessage.save(null, {
-              success: function(outboundMessage)
-              {
-                // Done with /startTree call !
-                console.log("sendTwilioWelcomeSMS callback log: ");
-                console.log(text.to + " - " + text.form + " - " + text.body + " - " + err.message);
-
-                response.success({
-                  "outboundMessages": [outboundMessage, secondMessage],
-                  "twilioNumber": twilioNumber,
-                  "twilioAccount": twilioAccount,
-                  "errorMessage": false
-                });
-              }
+        try {
+          sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
+            function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
+              // save OutboundMessage entity
+              outboundMessage.set("from", twilioNumber.get("phoneNumber"));
+              outboundMessage.set("accountSid", twilioNumber.get("accountSid"));
+              outboundMessage.save(null, {
+                success: function(outboundMessage)
+                {
+                  response.success({
+                    "outboundMessages": [outboundMessage, secondMessage],
+                    "twilioNumber": twilioNumber,
+                    "twilioAccount": twilioAccount,
+                    "errorMessage": false
+                  });
+                }
+              });
             });
+        }
+        catch (e) {
+          // Error occured when trying to send SMS
+          response.success({
+            "errorMessage": "(Send Feedback) " + e
           });
+        }
       }); /* end number.sync() callback */
     },
     error: function(error) {
       response.success({
-        "errorMessage": "Unknown Session Error: " + error
+        "errorMessage": "(Session) " + error.message
       });
     }
   }); /* end query.get(accountId) block */
@@ -738,8 +748,8 @@ Parse.Cloud.define("handleTree", function(request, response)
   var smsTree        = "undefined" != typeof request.params.tree ?
           request.params.tree : "";
 
-  customerNumber = customerNumber.startsWith('+') ? customerNumber : ("+" + customerNumber);
-  twilioNumber   = twilioNumber.startsWith('+') ? twilioNumber : ("+" + twilioNumber);
+  customerNumber = customerNumber[0] == '+' ? customerNumber : ("+" + customerNumber);
+  twilioNumber   = twilioNumber[0] == '+' ? twilioNumber : ("+" + twilioNumber);
 
   // save incoming message
   var incoming = new IncomingMessage();
