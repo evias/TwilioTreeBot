@@ -1,6 +1,6 @@
 {
     "name": "twilio-tree-bot",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "author": "Grégory Saive <greg@evias.be>",
     "description": "TwilioTreeBot is a SMS Decision Tree API and Web App using Parse and Twilio",
     "keywords": [

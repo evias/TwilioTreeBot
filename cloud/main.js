@@ -260,7 +260,9 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
           case 0:
             return FeedbackService.answerFeedback(twilioAccount, twilioNumber,
                     incomingMessage, feedbackDiscussion, callback);
-        }
+          }
+        },
+        error: function(error) {
         }});
       },
       error: function(err)
@@ -286,13 +288,13 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound1.set("accountSid", twilioNumber.get("accoundSid"));
+      outbound1.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
       outbound1.save();
 
       if (outboundType1 != "unsupported") {
         var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
         outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-        outbound2.set("accountSid", twilioNumber.get("accoundSid"));
+        outbound2.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
         outbound2.save();
 
         // NEXT STATE
@@ -318,12 +320,12 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound1.set("accountSid", twilioNumber.get("accoundSid"));
+      outbound1.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
       outbound1.save();
 
       var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
       outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound2.set("accountSid", twilioNumber.get("accoundSid"));
+      outbound2.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
       outbound2.save();
 
       // NEXT STATE - Discusion DONE
@@ -343,12 +345,12 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound1.set("accountSid", twilioNumber.get("accoundSid"));
+      outbound1.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
       outbound1.save();
 
       var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
       outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound2.set("accountSid", twilioNumber.get("accoundSid"));
+      outbound2.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
       outbound2.save();
 
       // NO UPDATE OF STATE BECAUSE THE

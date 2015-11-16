@@ -443,8 +443,11 @@ app.post('/sendRequest', function(request, response)
     if (! firstName || ! firstName.length)
       errors.push("The customer name may not be empty.");
 
-    if (! phoneNumber || ! phoneNumber.length)
+    if (! phoneNumber || ! phoneNumber.length) {
       errors.push("The customer phone number may not be empty.");
+    }
+    else if (phoneNumber[0] != '+' || phoneNumber[1] != '1')
+      errors.push("The phone number must be in Format: +1###-###-####.");
 
     if (! url || ! url.length)
       errors.push("The URL may not be empty.");
