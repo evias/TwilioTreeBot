@@ -558,7 +558,7 @@ Parse.Cloud.define("syncAccount", function(request, response)
   if (!name.length || !phone.length)
     response.error("Fields firstName and phoneNumber are mandatory !");
 
-  phone = ("+" + phone);
+  phone = phone[0] == '+' ? phone : ("+" + phone);
 
   var createAccount = function(userId, name, phone, url, callback)
   {
@@ -767,9 +767,6 @@ Parse.Cloud.define("handleTree", function(request, response)
     success: function(feedbackDiscussion)
     {
       if (! feedbackDiscussion) {
-        customerNumber = customerNumber.startsWith('+') ? customerNumber : ("+" + customerNumber);
-        twilioNumber   = twilioNumber.startsWith('+') ? twilioNumber : ("+" + twilioNumber);
-
         // Customer could not be identified
         // need to create new TwilioAccount
         var account = new TwilioAccount();
