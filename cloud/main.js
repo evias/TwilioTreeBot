@@ -25,7 +25,7 @@ limitations under the License.
 require('cloud/app.js');
 
 // PROD
-var twilioClient = require('twilio')("SK30c19224c46a68b968c3afecbd0e9fb8", "Tr8kQmo6ta7aUxkp4JlKB1E16jSK842P");
+var twilioClient = require('twilio')("TWILIO_API_KEY", "TWILIO_AUTH_TOKEN");
 
 /*******************************************************************************
  * Models classes definition for TwilioTreeBot
@@ -421,7 +421,7 @@ Parse.Cloud.define("createNumber", function(request, response)
   var createNumber = function(accountAtTwilio, userArea, country, callback)
   {
     // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-    var apiClient   = new require('twilio')("AC262f226d31773bd3420fbae7241df466", "8595d459352de91e9c2a3d25a86ee6d6");
+    var apiClient   = new require('twilio')("TWILIO_MASTER_ACCOUNT_SID", "TWILIO_MASTER_ACCOUNT_TOKEN");
     apiClient.availablePhoneNumbers(country)
                 .local.list({
       AreaCode: userArea,
@@ -529,7 +529,7 @@ Parse.Cloud.define("validateAreaCode", function(request, response)
   // Check for available phone numbers in
   // the given Area code.
   // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-  var apiClient   = new require('twilio')("AC262f226d31773bd3420fbae7241df466", "8595d459352de91e9c2a3d25a86ee6d6");
+  var apiClient   = new require('twilio')("TWILIO_MASTER_ACCOUNT_SID", "TWILIO_MASTER_ACCOUNT_TOKEN");
   apiClient.availablePhoneNumbers(country)
               .local.list({
     AreaCode: code,
