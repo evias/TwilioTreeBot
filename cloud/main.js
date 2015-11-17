@@ -25,7 +25,7 @@ limitations under the License.
 require('cloud/app.js');
 
 // PROD
-var twilioClient = require('twilio')("TWILIO_API_KEY", "TWILIO_AUTH_TOKEN");
+var twilioClient = require('twilio')("SK97f43df947e6c514eaa80dc86652e5bf", "xF3zO4BLZFeHNed63dqVi7hSaTL7WpD3");
 
 /*******************************************************************************
  * Models classes definition for TwilioTreeBot
@@ -288,13 +288,13 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound1.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+      outbound1.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
       outbound1.save();
 
       if (outboundType1 != "unsupported") {
         var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
         outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-        outbound2.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+        outbound2.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
         outbound2.save();
 
         // NEXT STATE
@@ -320,12 +320,12 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound1.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+      outbound1.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
       outbound1.save();
 
       var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
       outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound2.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+      outbound2.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
       outbound2.save();
 
       // NEXT STATE - Discusion DONE
@@ -345,12 +345,12 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound1.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+      outbound1.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
       outbound1.save();
 
       var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
       outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound2.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+      outbound2.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
       outbound2.save();
 
       // NO UPDATE OF STATE BECAUSE THE
@@ -421,7 +421,7 @@ Parse.Cloud.define("createNumber", function(request, response)
   var createNumber = function(accountAtTwilio, userArea, country, callback)
   {
     // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-    var apiClient   = new require('twilio')("TWILIO_MASTER_ACCOUNT_SID", "TWILIO_MASTER_ACCOUNT_TOKEN");
+    var apiClient   = new require('twilio')("AC89bea12cb6782b72bc47f37999953b2f", "89f842387581a640d48a7e4fea362888");
     apiClient.availablePhoneNumbers(country)
                 .local.list({
       AreaCode: userArea,
@@ -457,7 +457,7 @@ Parse.Cloud.define("createNumber", function(request, response)
         var parseTwilioNumber = new TwilioNumber();
         parseTwilioNumber.set("userId", userId);
         parseTwilioNumber.set("numberSid", purchasedNumber.sid);
-        parseTwilioNumber.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+        parseTwilioNumber.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
         parseTwilioNumber.set("phoneNumber", newPhoneNumber);
         parseTwilioNumber.save(null, {
           success: function(parseTwilioNumber)
@@ -529,7 +529,7 @@ Parse.Cloud.define("validateAreaCode", function(request, response)
   // Check for available phone numbers in
   // the given Area code.
   // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-  var apiClient   = new require('twilio')("TWILIO_MASTER_ACCOUNT_SID", "TWILIO_MASTER_ACCOUNT_TOKEN");
+  var apiClient   = new require('twilio')("AC89bea12cb6782b72bc47f37999953b2f", "89f842387581a640d48a7e4fea362888");
   apiClient.availablePhoneNumbers(country)
               .local.list({
     AreaCode: code,
