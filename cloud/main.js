@@ -621,61 +621,38 @@ Parse.Cloud.define("syncAccount", function(request, response)
 
   phone = phone[0] == '+' ? phone : ("+" + phone);
 
-  var createAccount = function(userId, name, phone, url, callback)
-  {
-    var account = new TwilioAccount();
-    account.set("firstName", name);
-    account.set("phoneNumber", phone);
-    account.set("userId", userId);
-    account.set("url", url);
-
-    // save Parse App TwilioAccount
-    // then sync with Twilio's subaccount (or create)
-    // then save Twilio's SID in Parse App TwilioAccount entity
-    account.save(null, {
-      success: function(act) {
-        callback(act);
-      },
-      error: function(act, error) {
-        throw("Could not save account. Error: " + error);
-      }
-    });
-  }
-
   // if account already exists, query for it
   // and send the account in the response
   var query = new Parse.Query(TwilioAccount);
+  query.equalTo("firstName", name);
   query.equalTo("phoneNumber", phone);
   query.equalTo("userId", userId);
   query.first({
-    success: function(twilioAccount)
-    {
-      if (twilioAccount)
-        response.success({"twilioAccount": twilioAccount});
-      else {
-        try {
-          createAccount(userId, name, phone, url,
-            function(twilioAccount)
-            {
-              response.success({"twilioAccount": twilioAccount});
-            });
-        }
-        catch (e) { response.error(e) };
-      }
-    },
-    error: function(error)
-    {
-      console.log("Error: " + error);
-      try {
-        createAccount(userId, name, phone, url,
-          function(twilioAccount)
-          {
-            response.success({"twilioAccount": twilioAccount});
-          });
-      }
-      catch (e) { response.error(e) };
+  success: function(twilioAccount)
+  {
+    if (twilioAccount)
+      // customer account exists
+      response.success({"twilioAccount": twilioAccount});
+    else {
+      // customer account must be created
+      var account = new TwilioAccount();
+      account.set("firstName", name);
+      account.set("phoneNumber", phone);
+      account.set("userId", userId);
+      account.set("url", url);
+
+      // save Parse App TwilioAccount
+      // then sync with Twilio's subaccount (or create)
+      // then save Twilio's SID in Parse App TwilioAccount entity
+      account.save(null, {
+      success: function(act) {
+        response.success({"twilioAccount": act});
+      },
+      error: function(act, error) {
+        response.error(error.message);
+      }});
     }
-  });
+  }});
 });
 
 /**
