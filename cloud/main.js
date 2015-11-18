@@ -25,7 +25,7 @@ limitations under the License.
 require('cloud/app.js');
 
 // PROD
-var twilioClient = require('twilio')("SK97f43df947e6c514eaa80dc86652e5bf", "xF3zO4BLZFeHNed63dqVi7hSaTL7WpD3");
+var twilioClient = require('twilio');
 
 /*******************************************************************************
  * Models classes definition for TwilioTreeBot
@@ -100,6 +100,8 @@ var OutboundMessage = Parse.Object.extend("OutboundMessage",
     {
         var self = this;
 
+        var config = Parse.Config.current();
+        twilioClient.initialize(config.get("twilioAppSID"), config.get("twilioAppToken"));
         twilioClient.accounts(self.get("accountSid"))
                     .sms.messages.create(
         {
@@ -457,7 +459,9 @@ Parse.Cloud.define("createNumber", function(request, response)
   var createNumber = function(accountAtTwilio, userArea, country, callback)
   {
     // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-    var apiClient   = new require('twilio')("AC89bea12cb6782b72bc47f37999953b2f", "89f842387581a640d48a7e4fea362888");
+    var config    = Parse.Config.current();
+    var apiClient = new require('twilio');
+    apiClient.initialize(config.get("twilioAccountSID"), config.get("twilioAccountToken"));
     apiClient.availablePhoneNumbers(country)
                 .local.list({
       AreaCode: userArea,
@@ -513,6 +517,8 @@ Parse.Cloud.define("createNumber", function(request, response)
   query.get(userId, {
     success: function(currentUser)
     {
+      var config    = Parse.Config.current();
+      twilioClient.initialize(config.get("twilioAppSID"), config.get("twilioAppToken"));
       twilioClient.accounts.list({
         friendlyName: currentUser.get("officeName")
       },
@@ -565,7 +571,9 @@ Parse.Cloud.define("validateAreaCode", function(request, response)
   // Check for available phone numbers in
   // the given Area code.
   // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-  var apiClient   = new require('twilio')("AC89bea12cb6782b72bc47f37999953b2f", "89f842387581a640d48a7e4fea362888");
+  var config    = Parse.Config.current();
+  var apiClient = new require('twilio');
+  apiClient.initialize(config.get("twilioAccountSID"), config.get("twilioAccountToken"));
   apiClient.availablePhoneNumbers(country)
               .local.list({
     AreaCode: code,
