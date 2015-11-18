@@ -25,7 +25,7 @@ limitations under the License.
 require('cloud/app.js');
 
 // PROD
-var twilioClient = require('twilio')("TWILIO_API_KEY", "TWILIO_AUTH_TOKEN");
+var twilioClient = require('twilio')("SK97f43df947e6c514eaa80dc86652e5bf", "xF3zO4BLZFeHNed63dqVi7hSaTL7WpD3");
 
 /*******************************************************************************
  * Models classes definition for TwilioTreeBot
@@ -224,6 +224,35 @@ var FeedbackDiscussion = Parse.Object.extend("FeedbackDiscussion",
 var FeedbackService = Parse.Object.extend("FeedbackService",
   {},
   {
+    requestFeedback: function(twilioAccount, twilioNumber, callback)
+    {
+      var outbound1 = OutboundMessage.Factory(twilioAccount, "first");
+      outbound1.set("from", twilioNumber.get("phoneNumber"));
+      outbound1.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+      outbound1.save({
+      success: function(outbound1) {
+        var outbound2 = OutboundMessage.Factory(twilioAccount, "second");
+        outbound2.set("from", twilioNumber.get("phoneNumber"));
+        outbound2.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+        outbound2.save({
+        success: function(outbound2) {
+          outbound1.send(function() {
+            outbound2.send(function() {
+              var discussion = new FeedbackDiscussion();
+              discussion.set("numberId", twilioNumber.id);
+              discussion.set("accountId", twilioAccount.id);
+              discussion.set("twilioNumber", twilioNumber.get("phoneNumber"));
+              discussion.set("customerNumber", twilioAccount.get("phoneNumber"));
+              discussion.set("state", 2);
+              discussion.save({
+              success: function(discussion) {
+                callback(discussion, outbound1, outbound2);
+              }});
+            });
+          });
+        }});
+      }});
+    },
     delegateService: function(incomingMessage, feedbackDiscussion, callback)
     {
       var customerNumber = incomingMessage.get("from");
@@ -288,28 +317,31 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound1.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
-      outbound1.save();
+      outbound1.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+      outbound1.save({
+      success:function (outbound1) {
+        if (outboundType1 != "unsupported") {
+          var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
+          outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
+          outbound2.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+          outbound2.save({
+          success:function(outbound2) {
+            // NEXT STATE
+            feedbackDiscussion.set("state", 3);
+            feedbackDiscussion.save();
 
-      if (outboundType1 != "unsupported") {
-        var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
-        outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-        outbound2.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
-        outbound2.save();
-
-        // NEXT STATE
-        feedbackDiscussion.set("state", 3);
-        feedbackDiscussion.save();
-
-        outbound1.send(function() {});
-        return outbound2.send(callback);
-      }
-      else
-        // no need for state change when anything
-        // else than yes/no is received.
-        // waiting until next receive to potentially
-        // interpret a correct Yes/No.
-        return outbound1.send(callback);
+            outbound1.send(function() {
+              outbound2.send(callback);
+            });
+          }});
+        }
+        else
+          // no need for state change when anything
+          // else than yes/no is received.
+          // waiting until next receive to potentially
+          // interpret a correct Yes/No.
+          return outbound1.send(callback);
+      }});
     },
     answerThanks: function(twilioAccount, twilioNumber, incomingMessage, feedbackDiscussion, callback)
     {
@@ -320,21 +352,23 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound1.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
-      outbound1.save();
+      outbound1.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+      outbound1.save({
+      success: function(outbound1) {
+        var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
+        outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
+        outbound2.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+        outbound2.save({
+        success: function(outbound2) {
+          // NEXT STATE - Discusion DONE
+          feedbackDiscussion.set("state", 4);
+          feedbackDiscussion.save();
 
-      var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
-      outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound2.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
-      outbound2.save();
-
-      // NEXT STATE - Discusion DONE
-      feedbackDiscussion.set("state", 4);
-      feedbackDiscussion.save();
-
-      outbound1.send(function() {
-        outbound2.send(callback);
-      });
+          outbound1.send(function() {
+            outbound2.send(callback);
+          });
+        }});
+      }});
     },
     answerFeedback: function(twilioAccount, twilioNumber, incomingMessage, feedbackDiscussion, callback)
     {
@@ -345,22 +379,24 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
 
       var outbound1 = OutboundMessage.Factory(twilioAccount, outboundType1);
       outbound1.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound1.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
-      outbound1.save();
+      outbound1.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+      outbound1.save({
+      success: function(outbound1) {
+        var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
+        outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
+        outbound2.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+        outbound2.save({
+        success: function(outbound2) {
+          // NO FEEDBACK STATE CHANGE
+          // CUSTOMER INITIATED DISCUSSION
+          //feedbackDiscussion.set("state", 4);
+          //feedbackDiscussion.save();
 
-      var outbound2 = OutboundMessage.Factory(twilioAccount, outboundType2);
-      outbound2.set("from", feedbackDiscussion.get("twilioNumber"));
-      outbound2.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
-      outbound2.save();
-
-      // NO UPDATE OF STATE BECAUSE THE
-      // CUSTOMER INITIATED THE DISCUSSION
-      //feedbackDiscussion.set("state", 4);
-      //feedbackDiscussion.save();
-
-      outbound1.send(function() {
-        outbound2.send(callback);
-      });
+          outbound1.send(function() {
+            outbound2.send(callback);
+          });
+        }});
+      }});
     }
   }
 );
@@ -421,7 +457,7 @@ Parse.Cloud.define("createNumber", function(request, response)
   var createNumber = function(accountAtTwilio, userArea, country, callback)
   {
     // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-    var apiClient   = new require('twilio')("TWILIO_MASTER_ACCOUNT_SID", "TWILIO_MASTER_ACCOUNT_TOKEN");
+    var apiClient   = new require('twilio')("AC89bea12cb6782b72bc47f37999953b2f", "89f842387581a640d48a7e4fea362888");
     apiClient.availablePhoneNumbers(country)
                 .local.list({
       AreaCode: userArea,
@@ -457,7 +493,7 @@ Parse.Cloud.define("createNumber", function(request, response)
         var parseTwilioNumber = new TwilioNumber();
         parseTwilioNumber.set("userId", userId);
         parseTwilioNumber.set("numberSid", purchasedNumber.sid);
-        parseTwilioNumber.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+        parseTwilioNumber.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
         parseTwilioNumber.set("phoneNumber", newPhoneNumber);
         parseTwilioNumber.save(null, {
           success: function(parseTwilioNumber)
@@ -529,7 +565,7 @@ Parse.Cloud.define("validateAreaCode", function(request, response)
   // Check for available phone numbers in
   // the given Area code.
   // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-  var apiClient   = new require('twilio')("TWILIO_MASTER_ACCOUNT_SID", "TWILIO_MASTER_ACCOUNT_TOKEN");
+  var apiClient   = new require('twilio')("AC89bea12cb6782b72bc47f37999953b2f", "89f842387581a640d48a7e4fea362888");
   apiClient.availablePhoneNumbers(country)
               .local.list({
     AreaCode: code,
@@ -649,55 +685,6 @@ Parse.Cloud.define("startTree", function(request, response)
   var userId = "undefined" != typeof request.params.userId ?
               request.params.userId : "";
 
-  var sendTwilioWelcomeSMS = function(outboundMessage, twilioNumber, twilioAccount, callback)
-    {
-      // Send first SMS (outboundMessage parameter)
-      twilioClient.accounts(twilioNumber.get("accountSid"))
-                  .sms.messages.create(
-      {
-        to: twilioAccount.get("phoneNumber"),
-        from: twilioNumber.get("phoneNumber"),
-        body: outboundMessage.get("msgText")
-      },
-      function(err, text) {
-        if (err)
-          // general Twilio API error.
-          throw(err.message);
-
-        // Send second SMS
-        var secondMessage = OutboundMessage.Factory(twilioAccount, "second");
-        twilioClient.accounts(twilioNumber.get("accountSid"))
-                .sms.messages.create(
-        {
-          to: twilioAccount.get("phoneNumber"),
-          from: twilioNumber.get("phoneNumber"),
-          body: secondMessage.get("msgText")
-        },
-        function(err, text) {
-          if (err)
-            // general Twilio API error.
-            throw(err.message);
-
-          secondMessage.set("from", twilioNumber.get("phoneNumber"));
-          secondMessage.set("accountSid", twilioNumber.get("accountSid"));
-          secondMessage.save();
-
-          // We are now starting the Feedback discussion
-          // between twilioAccount and twilioNumber.
-          // (Feedback Request SMS are now sent).
-          var discussion = new FeedbackDiscussion();
-          discussion.set("numberId", twilioNumber.id);
-          discussion.set("accountId", twilioAccount.id);
-          discussion.set("twilioNumber", twilioNumber.get("phoneNumber"));
-          discussion.set("customerNumber", twilioAccount.get("phoneNumber"));
-          discussion.set("state", 2);
-          discussion.save();
-
-          callback(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text);
-        });
-      });
-    }
-
   // when the entity is loaded we are up to sending
   // the first SMS of the decision tree. (and start a discussion)
   var query = new Parse.Query(TwilioAccount);
@@ -706,8 +693,6 @@ Parse.Cloud.define("startTree", function(request, response)
       var number   = new TwilioNumber();
       number.set("userId", userId);
 
-      var outbound = OutboundMessage.Factory(parseTwilioAccount, "first");
-
       // sync number with twilio sub account outgoingCallerIds
       // then send SMS (and update outbound message entity)
       number.sync(function(parseTwilioNumber, needPurchase)
@@ -715,21 +700,14 @@ Parse.Cloud.define("startTree", function(request, response)
         // we can directly send the SMS, a TwilioNumber entry
         // was already present in the database.
         try {
-          sendTwilioWelcomeSMS(outbound, parseTwilioNumber, parseTwilioAccount,
-            function(outboundMessage, secondMessage, twilioNumber, twilioAccount, err, text) {
-              // save OutboundMessage entity
-              outboundMessage.set("from", twilioNumber.get("phoneNumber"));
-              outboundMessage.set("accountSid", twilioNumber.get("accountSid"));
-              outboundMessage.save(null, {
-                success: function(outboundMessage)
-                {
-                  response.success({
-                    "outboundMessages": [outboundMessage, secondMessage],
-                    "twilioNumber": twilioNumber,
-                    "twilioAccount": twilioAccount,
-                    "errorMessage": false
-                  });
-                }
+          FeedbackService.requestFeedback(parseTwilioAccount, parseTwilioNumber,
+            function(feedbackDiscussion, outboundFirst, outboundSecond) {
+            // SMS sent callback, feedback request SENT !
+              response.success({
+                "outboundMessages": [],
+                "twilioNumber": parseTwilioNumber,
+                "twilioAccount": parseTwilioAccount,
+                "errorMessage": false
               });
             });
         }
