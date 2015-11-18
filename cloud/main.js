@@ -24,9 +24,6 @@ limitations under the License.
 **/
 require('cloud/app.js');
 
-// PROD
-var twilioClient = require('twilio');
-
 /*******************************************************************************
  * Models classes definition for TwilioTreeBot
  * @link https://twiliotreebot.parseapp.com
@@ -96,22 +93,39 @@ var TwilioNumber = Parse.Object.extend("TwilioNumber",
  **/
 var OutboundMessage = Parse.Object.extend("OutboundMessage",
   {
+    /**
+     * The OutboundMessage.send() instance method provides
+     * with a way of calling Twilio'S SMS sending API
+     * for sending OUT SMS messages to the twilioAccount
+     * configured on the OutboundMessage, filled for example
+     * using the provided OutboundMessage.Factory() method.
+     *
+     * @param   callable  callback  Callable to call after Send
+     * @return  void
+     **/
     send: function(callback)
     {
         var self = this;
 
-        var config = Parse.Config.current();
-        twilioClient.initialize(config.get("twilioAppSID"), config.get("twilioAppToken"));
-        twilioClient.accounts(self.get("accountSid"))
-                    .sms.messages.create(
-        {
-            to: self.get("to"),
-            from: self.get("from"),
-            body: self.get("msgText")
-        },
-        function(err, text) {
-            callback(err, text, self);
-        });
+        Parse.Config.get().then(
+          function(config)
+          {
+            var twilioClient = require("twilio")(
+              config.get("twilioAppSID"),
+              config.get("twilioAppToken"));
+
+            twilioClient.accounts(self.get("accountSid"))
+                        .sms.messages.create(
+            {
+                to: self.get("to"),
+                from: self.get("from"),
+                body: self.get("msgText")
+            },
+            function(err, text) {
+                callback(err, text, self);
+            });
+          },
+          function(error) { console.log("Could not load Parse.Config"); console.log(error); });
     }
   },
   {
@@ -458,10 +472,13 @@ Parse.Cloud.define("createNumber", function(request, response)
    **/
   var createNumber = function(accountAtTwilio, userArea, country, callback)
   {
+    // @see https://www.parse.com/docs/js/guide#config
     // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
+
+    // current() can be called because get() was called
+    // before this function is executed.
     var config    = Parse.Config.current();
-    var apiClient = new require('twilio');
-    apiClient.initialize(config.get("twilioAccountSID"), config.get("twilioAccountToken"));
+    var apiClient = new require('twilio')(config.get("twilioAccountSID"), config.get("twilioAccountToken"));
     apiClient.availablePhoneNumbers(country)
                 .local.list({
       AreaCode: userArea,
@@ -517,36 +534,43 @@ Parse.Cloud.define("createNumber", function(request, response)
   query.get(userId, {
     success: function(currentUser)
     {
-      var config    = Parse.Config.current();
-      twilioClient.initialize(config.get("twilioAppSID"), config.get("twilioAppToken"));
-      twilioClient.accounts.list({
-        friendlyName: currentUser.get("officeName")
-      },
-      function(err, data) {
-        var officeName = currentUser.get("officeName");
-        if (data && data.account && data.accounts.length) {
-          // account with this friendlyName already exists !
-          response.error("Office Name '" + officeName + "' already exists.");
-        }
-        else {
-          // now create account.
-          twilioClient.accounts.create(
-            {friendlyName: officeName},
-            function(err, twilioAccount) {
-              // Subaccount successfully created, will now
-              // create a Phone Number at Twilio and save
-              // it as a TwilioNumber instance in our Parse app.
-              try {
-                createNumber(twilioAccount, userArea, country,
-                  function(twilioNumber)
-                  {
-                    response.success({"twilioNumber": twilioNumber});
-                  });
-              }
-              catch (e) { response.error("Could not create number: " + e) };
-            });
-        }
-      }); /* end twilio call accounts.list */
+      Parse.Config.get().then(
+        function(config)
+        {
+          var twilioClient = require("twilio")(
+            config.get("twilioAppSID"),
+            config.get("twilioAppToken"));
+
+          twilioClient.accounts.list({
+            friendlyName: currentUser.get("officeName")
+          },
+          function(err, data) {
+            var officeName = currentUser.get("officeName");
+            if (data && data.account && data.accounts.length) {
+              // account with this friendlyName already exists !
+              response.error("Office Name '" + officeName + "' already exists.");
+            }
+            else {
+              // now create SUBaccount.
+              twilioClient.accounts.create(
+                {friendlyName: officeName},
+                function(err, twilioAccount) {
+                  // Subaccount successfully created, will now
+                  // create a Phone Number at Twilio and save
+                  // it as a TwilioNumber instance in our Parse app.
+                  try {
+                    createNumber(twilioAccount, userArea, country,
+                      function(twilioNumber)
+                      {
+                        response.success({"twilioNumber": twilioNumber});
+                      });
+                  }
+                  catch (e) { response.error("Could not create number: " + e) };
+                });
+            }
+          }); /* end twilio call accounts.list */
+        },
+        function(error) {});
     },
     error: function(error) {
       response.error("User account ID '" + userId + "' not found.");
@@ -571,30 +595,32 @@ Parse.Cloud.define("validateAreaCode", function(request, response)
   // Check for available phone numbers in
   // the given Area code.
   // @see https://www.twilio.com/docs/api/rest/available-phone-numbers#local-get
-  var config    = Parse.Config.current();
-  var apiClient = new require('twilio');
-  apiClient.initialize(config.get("twilioAccountSID"), config.get("twilioAccountToken"));
-  apiClient.availablePhoneNumbers(country)
-              .local.list({
-    AreaCode: code,
-    SmsEnabled: true,
-    ExcludeAllAddressRequired: true
-  },
-  function(err, searchResults) {
+  Parse.Config.get().then(
+    function(config) {
+      var apiClient = new require('twilio')(config.get("twilioAccountSID"), config.get("twilioAccountToken"));
+      apiClient.availablePhoneNumbers(country)
+                  .local.list({
+        AreaCode: code,
+        SmsEnabled: true,
+        ExcludeAllAddressRequired: true
+      },
+      function(err, searchResults) {
 
-    if (err)
-      // general Twilio API error
-      response.error(err.message);
+        if (err)
+          // general Twilio API error
+          response.error(err.message);
 
-    else if (! searchResults.availablePhoneNumbers
-        || searchResults.availablePhoneNumbers.length < 1)
-      // no phone numbers available for area code.
-      response.error("No numbers found with that area code");
+        else if (! searchResults.availablePhoneNumbers
+            || searchResults.availablePhoneNumbers.length < 1)
+          // no phone numbers available for area code.
+          response.error("No numbers found with that area code");
 
-    else if (searchResults.availablePhoneNumbers.length >= 1)
-      // OK
-      response.success({"result": true, "errorMessage": false});
-  }); /* end apiClient.availablePhoneNumbers callback */
+        else if (searchResults.availablePhoneNumbers.length >= 1)
+          // OK
+          response.success({"result": true, "errorMessage": false});
+      }); /* end apiClient.availablePhoneNumbers callback */
+    },
+    function(error) {});
 });
 
 /**
