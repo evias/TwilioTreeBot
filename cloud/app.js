@@ -94,10 +94,28 @@ app.get('/', function(request, response)
   else if (! currentUser.get("isActive"))
     response.redirect("/subscription");
   else {
-    response.render('homepage', {
-      "currentUser": currentUser,
-      "errorMessage": false,
-      "successMessage": false
+
+    var error   = request.query.error;
+    var success = request.query.success;
+
+    // load IncomingMessage entries linked to
+    // currentUser.twilioPhoneNumber
+    Parse.Cloud.run("listFeedback", {
+      userId: currentUser.id
+    }, {
+      success: function (cloudResponse)
+      {
+        response.render('homepage', {
+          "currentUser": currentUser,
+          "myMessages": cloudResponse.myMessages,
+          "errorMessage": error ? unescape(error) : false,
+          "successMessage": success ? unescape(success) : false
+        });
+      },
+      error: function (cloudResponse)
+      {
+        response.send("Error: " + cloudResponse.message);
+      }
     });
   }
 });
@@ -485,11 +503,7 @@ app.post('/sendRequest', function(request, response)
 
     if (errors.length)
       // refresh with error messages displayed
-      response.render("homepage", {
-        "currentUser": currentUser,
-        "errorMessage": errors.join(" ", errors),
-        "successMessage": false
-      });
+      response.redirect("/?error=" + escape(errors.join(" ", errors)));
     else {
       // VALID form input, we can now initiate the
       // Feedback Discussion, etc.
@@ -518,26 +532,15 @@ app.post('/sendRequest', function(request, response)
           {
             success: function(cloudResponse) {
               if (cloudResponse.errorMessage)
-                response.render("homepage", {
-                  "currentUser": currentUser,
-                  "errorMessage": cloudResponse.errorMessage,
-                  "successMessage": false
-                });
+                response.redirect("/?error=" + escape(cloudResponse.errorMessage));
               else {
-                response.render("homepage", {
-                  "currentUser": currentUser,
-                  "errorMessage": false,
-                  "successMessage": "Congratulations ! You have sent a Feedback "
-                                  + "Request to your customer '" + twilioAccount.get("firstName") + "'."
-                });
+                success = "Congratulations ! You have sent a Feedback "
+                        + "Request to your customer '" + twilioAccount.get("firstName") + "'.";
+                response.redirect("/?success=" + escape(success));
               }
             },
             error: function(error) {
-              response.render("homepage", {
-                "currentUser": currentUser,
-                "errorMessage": error.message,
-                "successMessage": false
-              });
+              response.redirect("/?error=" + escape(error.message));
             }
           }); /* end Parse.Cloud.run("startTree") */
         },
@@ -546,11 +549,7 @@ app.post('/sendRequest', function(request, response)
           // error happened on /syncAccount, we could not sync
           // the input data with a new TwilioAccount entry.
           // should never happen.
-          response.render("homepage", {
-            "currentUser": currentUser,
-            "errorMessage": error.message,
-            "successMessage": false
-          });
+          response.redirect("/?error=" + escape(error.message));
         }
       }); /* end Parse.Cloud.run("syncAccount") */
     } /* end if (errors.length) block */
