@@ -194,11 +194,15 @@ app.get('/my-account', function(request, response)
   }
   else {
 
+    var planText = currentUser.get("stripePlan") == "standard" ? "Standard Account" : "Pro Account";
+
     var settings = {
       "officeName": currentUser.get("officeName"),
       "areaCode": currentUser.get("areaCode"),
       "phoneNumber": currentUser.get("twilioPhoneNumber"),
-      "emailAddress": currentUser.get("username")};
+      "emailAddress": currentUser.get("username"),
+      "subscriptionPlan": planText,
+      "subscriptionExpire": currentUser.get("activeUntil")};
 
     var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
     response.render('my-account', {

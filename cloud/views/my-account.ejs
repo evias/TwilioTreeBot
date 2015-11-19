@@ -10,6 +10,21 @@
             <div class="wide">
                 <div class="form-box">
                     <form id="update-settings" name="update-settings" action="/settings" method="post" novalidate="novalidate">
+
+                        <div class="form-row">
+                            <label>Subscription Plan</label>
+                            <input readonly type="text" id="subscriptionPlan" name="subscriptionPlan"
+                                   size="30" value="<%= settings.subscriptionPlan %>"
+                                   required="" class="text login_input">
+                        </div>
+
+                        <div class="form-row">
+                            <label>Next Subscription Payment</label>
+                            <input readonly type="text" id="subscriptionExpire" name="subscriptionExpire"
+                                   size="30" value="<%= settings.subscriptionExpire %>"
+                                   required="" class="text login_input">
+                        </div>
+
                         <div class="form-row">
                             <label>Office Name</label>
                             <input readonly type="text" id="officeName" name="officeName"
