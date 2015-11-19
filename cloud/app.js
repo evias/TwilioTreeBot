@@ -212,7 +212,13 @@ app.get('/my-account', function(request, response)
   }
   else {
 
-    var planText = currentUser.get("stripePlan") == "standard" ? "Standard Account" : "Pro Account";
+    var planText    = "No Active Subscription";
+    var activeUntil = "N/A";
+
+    if (currentUser.get("isActive")) {
+      planText      = currentUser.get("stripePlan") == "standard" ? "Standard Account" : "Pro Account";
+      activeUntil   = currentUser.get("activeUntil");
+    }
 
     var settings = {
       "officeName": currentUser.get("officeName"),
@@ -220,7 +226,8 @@ app.get('/my-account', function(request, response)
       "phoneNumber": currentUser.get("twilioPhoneNumber"),
       "emailAddress": currentUser.get("username"),
       "subscriptionPlan": planText,
-      "subscriptionExpire": currentUser.get("activeUntil")};
+      "subscriptionExpire": activeUntil
+    };
 
     var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
     response.render('my-account', {
@@ -274,14 +281,63 @@ app.get('/my-feedback', function(request, response)
 app.get('/subscription', function(request, response)
 {
   var currentUser = Parse.User.current();
-  if (! currentUser) {
+  if (! currentUser)
     response.redirect("/signin");
-  }
-  else {
+  else if (! currentUser.get("isActive") || ! currentUser.get("stripeSubscriptionId")) {
     response.render("subscription", {
       "currentUser": currentUser,
       "errorMessage": false
     });
+  }
+  else
+    // active user with active subscription
+    response.redirect("/");
+});
+
+/**
+ * GET /cancel-subscription
+ * describes the cancel-subscription GET request.
+ **/
+app.get('/cancel-subscription', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser) {
+    response.redirect("/signin");
+  }
+  else if (! currentUser.get("isActive"))
+    response.redirect("/subscription");
+  else {
+    Parse.Config.get().then(
+      function(config)
+      {
+        stripeApiKey = config.get("stripeTestSecretKey");
+        apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
+        cancelUrl = apiUrl + "/customers/" + currentUser.get("stripeCustomerId")
+                  + "/subscriptions/" + currentUser.get("stripeSubscriptionId");
+
+        // @see https://stripe.com/docs/api#cancel_subscription
+        Parse.Cloud.httpRequest({
+          method: "DELETE",
+          url: cancelUrl,
+          body: {at_period_end: true}
+        }).then(
+          function(httpRequest)
+          {
+            // next time the subscription expires, it will not
+            // be able to renew.
+            currentUser.set("stripeSubscriptionId", "");
+            currentUser.save(null, {
+              success:function(currentUser) {
+                response.redirect("/?success=" + escape("You have disabled the Automatic Subscription Renewal!"));
+              }
+            });
+          },
+          function(httpRequest)
+          {
+            var object = JSON.parse(httpRequest.text);
+            response.redirect("/?error=" + escape("Could not cancel subscription (Message: " + object.error.message + ")"));
+          });
+      });
   }
 });
 
@@ -591,6 +647,9 @@ app.post('/subscription', function(request, response)
       // VALID form input, we can now initiate the
       // Stripe API call for plans subscriptions
 
+      // @see https://stripe.com/docs/api#create_customer
+      // @see https://stripe.com/docs/api#create_subscription
+
       // get API key from config
       Parse.Config.get().then(
         function(config)
@@ -625,11 +684,13 @@ app.post('/subscription', function(request, response)
               }).then(
               function(httpRequest)
               {
+                var json_obj = JSON.parse(httpRequest.text);
                 var create = new Date();
                 var expire = new Date(new Date(create).setMonth(create.getMonth()+1));
 
                 // save stripe data and redirect to homepage
                 currentUser.set("stripeCustomerId", object.id);
+                currentUser.set("stripeSubscriptionId", json_obj.id);
                 currentUser.set("stripeEmail", stripeEmail);
                 currentUser.set("stripePlan", stripePlan);
                 currentUser.set("isActive", true);
@@ -637,7 +698,8 @@ app.post('/subscription', function(request, response)
                 currentUser.save(null, {
                   success:function(currentUser)
                   {
-                    response.redirect("/");
+                    var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
+                    response.redirect("/?success=" + msg);
                   }
                 });
               },

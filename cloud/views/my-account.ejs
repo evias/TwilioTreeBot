@@ -23,6 +23,13 @@
                             <input readonly type="text" id="subscriptionExpire" name="subscriptionExpire"
                                    size="30" value="<%= settings.subscriptionExpire %>"
                                    required="" class="text login_input">
+                            <% if (settings.subscriptionExpire != "N/A" && currentUser.get("stripeSubscriptionId")) { %>
+                            <span id="cancel-confirm"
+                                  style="display:none;">Are you sure about
+                                  cancelling your Subscription ?
+                              This action cannot be undone.</span>
+                            <div class="align-center"><a href="/cancel-subscription" id="cancel-action">Cancel Automatic Renewal</a></div>
+                            <% } %>
                         </div>
 
                         <div class="form-row">
@@ -61,5 +68,20 @@
             </div>
         </section>
     </div>
+
+<script>
+$(document).ready(function()
+{
+  $("#cancel-action").click(function(e)
+  {
+    if (! confirm($("#cancel-confirm").html())) {
+      e.preventDefault();
+      return false;
+    }
+
+    return true;
+  });
+});
+</script>
 
 <%- include footer -%>
