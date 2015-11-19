@@ -61,6 +61,11 @@ app.use(function(req, res, next)
         function(currentUser) {
           // currentUser now contains the BROWSER's logged in user.
           // Parse.User.current() for `req` will return the browsers user as well.
+
+          // make sure user's Stripe subscription is still
+          // active, if not needs re-subscribe
+
+
           next();
         },
         function(error) {
@@ -84,9 +89,10 @@ app.use(function(req, res, next)
 app.get('/', function(request, response)
 {
   var currentUser = Parse.User.current();
-  if (! currentUser) {
+  if (! currentUser)
     response.redirect("/signin");
-  }
+  else if (! currentUser.get("isActive"))
+    response.redirect("/subscription");
   else {
     response.render('homepage', {
       "currentUser": currentUser,

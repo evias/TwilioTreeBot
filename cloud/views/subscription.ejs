@@ -20,18 +20,30 @@
                         </div>
                         <% } %>
 
-                        <div class="form-row">
-                            <button id="subscribe-standard">Subscribe to Standard</button>
+                        <div id="unknown-error" style="display:none;">
+                            <div>
+                                <p>Error: Please Select a Plan !</p>
+                            </div>
                         </div>
+
+                        <div id="success" style="display:none;">
+                            <div>
+                                <p>You have selected a %%PLAN%% account, now please click
+                                "Subscribe Now" ! Or click Cancel to go back:
+                                <a href="#" id="cancel-action">Cancel</a></p>
+                            </div>
+                        </div>
+
                         <div class="form-row">
-                            <button id="subscribe-pro">Subscribe to PRO</button>
+                            <a href="#" id="subscribe-standard" class="btn subscribe-btn" data-rel="standard">Subscribe to Standard</a>
+                            <a href="#" id="subscribe-pro" class="btn subscribe-btn" data-rel="pro">Subscribe to PRO</a>
                         </div>
 
                         <div class="form-row">
                             <input type="hidden" name="stripeToken" id="stripe-token" />
                             <input type="hidden" name="stripeEmail" id="stripe-email" />
                             <input type="hidden" name="stripePlan" id="stripe-plan" />
-                            <input id="subscription-submit" type="submit" name="submit" value="Save Subscription" class="btn btn-wide">
+                            <input id="subscription-submit" type="submit" name="submit" value="Subscribe Now" class="btn btn-wide">
                         </div>
 
                     </form>
@@ -46,26 +58,7 @@
 
 <script src="https://checkout.stripe.com/checkout.js"></script>
 <script>
-var stripeHandler;
-Parse.initialize("ThfEtMA3gRRKGjcf63fNTb297LWMUuhPyZtAeOhu", "tr7KcgAiaNSDMNgiEAXaw4ETjMkz04nyRIpY2fHj");
-
-// get Stripe API Key from Parse.Config
-Parse.Config.get().then(
-function(config)
-{
-    stripeHandler = StripeCheckout.configure({
-        key: config.get("stripeTestPublicKey"),
-        image: '/images/logo.png',
-        locale: 'auto',
-        token: function(token) {
-            $("#stripe-token").val(token.id);
-            $("#stripe-email").val(token.email);
-        }
-    });
-},
-function(error) {});
-
-$(document).ready(function()
+var registerClickListeners = function()
 {
     $("#subscribe-standard").on("click", function(e)
     {
@@ -91,6 +84,103 @@ $(document).ready(function()
         });
         $("#stripe-plan").val("pro");
         e.preventDefault();
+    });
+};
+
+var unregisterClickListeners = function()
+{
+    // no more button click possible.
+    $("#subscribe-standard, #subscribe-pro").off("click");
+    $("#subscribe-standard, #subscribe-pro").on("click", function(e)
+        {
+            e.preventDefault();
+            return false;
+        });
+};
+
+var registerCancelListener = function()
+{
+    $("#cancel-action").click(function(e)
+    {
+        e.preventDefault();
+
+        $("#stripe-token").val("");
+        $("#stripe-email").val("");
+        $("#stripe-plan").val("");
+
+        $(".subscribe-btn").each(function()
+        {
+            $(this).css("background", $(this).attr("data-bg-backup"));
+        });
+        registerClickListeners();
+
+        $("#success").fadeOut("slow");
+        return false;
+    });
+};
+
+var stripeHandler;
+Parse.initialize("ThfEtMA3gRRKGjcf63fNTb297LWMUuhPyZtAeOhu", "tr7KcgAiaNSDMNgiEAXaw4ETjMkz04nyRIpY2fHj");
+
+// get Stripe API Key from Parse.Config
+Parse.Config.get().then(
+function(config)
+{
+    stripeHandler = StripeCheckout.configure({
+        key: config.get("stripeTestPublicKey"),
+        image: '/images/logo.png',
+        locale: 'auto',
+        token: function(token) {
+            $("#stripe-token").val(token.id);
+            $("#stripe-email").val(token.email);
+
+            unregisterClickListeners();
+
+            var chosen_plan  = $("#stripe-plan").val();
+            var other_plan   = chosen_plan == 'pro' ? 'standard' : 'pro';
+
+            $(".subscribe-btn").each(function()
+            {
+                $(this).attr("data-bg-backup", $(this).css("background"));
+            });
+
+            $("#subscribe-" + chosen_plan).css("background", "#77b054");
+            $("#subscribe-" + other_plan).css("background", "#aba6a6");
+
+            var plan_text    = chosen_plan == "pro" ? "Pro" : "Standard";
+            var success_html = $("#success").html().replace("%%PLAN%%", plan_text);
+            $("#success").html(success_html);
+            $("#success").fadeIn("slow");
+
+            registerCancelListener();
+        }
+    });
+},
+function(error) {});
+
+$(document).ready(function()
+{
+    registerClickListeners();
+
+    $("#plan-subscription").submit(function(e)
+    {
+        var bg_backup = $("#subscription-submit").css("background");
+
+        $("#subscription-submit").css({
+            "background": "#fff url(/images/ajax-loading.gif) no-repeat center center"
+        });
+        $("#subscription-submit").val("");
+
+        if (! $("#stripe-token").val().length) {
+            $("#subscription-submit").css("background", bg_backup);
+            $("#subscription-submit").val("Subscribe Now");
+            $("#unknown-error").fadeIn("slow");
+
+            e.preventDefault();
+            return false;
+        }
+
+        return true;
     });
 });
 </script>
