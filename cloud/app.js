@@ -236,6 +236,27 @@ app.get('/my-feedback', function(request, response)
   }
 });
 
+/**
+ * GET /subscription
+ * describes the subscription GET request.
+ * this handler offers the possible to select
+ * a Plan for the App. Checkout is done using
+ * Stripe.
+ **/
+app.get('/subscription', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser) {
+    response.redirect("/signin");
+  }
+  else {
+    response.render("subscription", {
+      "currentUser": currentUser,
+      "errorMessage": false
+    });
+  }
+});
+
 
 /*******************************************************************************
  * HTTP POST requests handlers for TwilioTreeBot
@@ -524,6 +545,113 @@ app.post('/sendRequest', function(request, response)
       }); /* end Parse.Cloud.run("syncAccount") */
     } /* end if (errors.length) block */
   } /* end if (!currentUser) block */
+});
+
+/**
+ * POST /subscription
+ * describes the subscription POST request.
+ * this handler checks for input and a valid Stripe
+ * token, then initiates a Strip Plan subscription.
+ **/
+app.post('/subscription', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser) {
+    response.redirect("/signin");
+  }
+  else {
+    // valid /subscription POST request, session is available.
+    var stripeToken = request.body.stripeToken;
+    var stripeEmail = request.body.stripeEmail;
+    var stripePlan  = request.body.stripePlan;
+    var errors      = [];
+
+    // input validation
+    if (! stripeToken || ! stripeToken.length
+        || ! stripeEmail || ! stripeEmail.length
+        || ! stripePlan || ! stripePlan.length)
+      errors.push("An error occured at Checkout. Please try again.");
+
+    if (errors.length)
+      // refresh with error messages displayed
+      response.render("subscription", {
+        "currentUser": currentUser,
+        "errorMessage": errors.join(" ", errors)
+      });
+    else {
+      // VALID form input, we can now initiate the
+      // Stripe API call for plans subscriptions
+
+      // get API key from config
+      Parse.Config.get().then(
+        function(config)
+        {
+          stripeApiKey = config.get("stripeTestSecretKey");
+          apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
+
+          // first we need to create a Stripe CUSTOMER
+          // then we can create a Stripe SUBSCRIPTION
+          Parse.Cloud.httpRequest({
+            method: "POST",
+            url: apiUrl + "/customers",
+            body: {
+              source: stripeToken,
+              email: stripeEmail,
+              description: "Stripe Customer for " + stripeEmail + " (" + stripePlan + ")"
+            }
+          }).then(
+            function(httpRequest)
+            {
+              var json   = httpRequest.text;
+              var object = JSON.parse(json);
+              var stripeCustomerId = object.id;
+
+              // now we can initiate the SUBSCRIPTION creation
+              Parse.Cloud.httpRequest({
+                method: "POST",
+                url: apiUrl + "/customers/" + stripeCustomerId + "/subscriptions",
+                body: {
+                  plan: stripePlan
+                }
+              }).then(
+              function(httpRequest)
+              {
+                var create = new Date();
+                var expire = new Date(new Date(create).setMonth(create.getMonth()+1));
+
+                // save stripe data and redirect to homepage
+                currentUser.set("stripeCustomerId", object.id);
+                currentUser.set("stripeEmail", stripeEmail);
+                currentUser.set("stripePlan", stripePlan);
+                currentUser.set("isActive", true);
+                currentUser.set("activeUntil", expire);
+                currentUser.save(null, {
+                  success:function(currentUser)
+                  {
+                    response.redirect("/");
+                  }
+                });
+              },
+              function(httpRequest)
+              {
+                var object = JSON.parse(httpRequest.text);
+                response.render("subscription", {
+                  "currentUser": currentUser,
+                  "errorMessage": "Could not create Subscription at Stripe (Message: " + object.error.message + ")"
+                });
+              });
+            },
+            function(httpRequest)
+            {
+              var object = JSON.parse(httpRequest.text);
+              response.render("subscription", {
+                "currentUser": currentUser,
+                "errorMessage": "Could not create Customer at Stripe (Message: " + object.error.message + ")"
+              });
+            });
+        });
+    }
+  }
 });
 
 /**
