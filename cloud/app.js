@@ -61,6 +61,11 @@ app.use(function(req, res, next)
         function(currentUser) {
           // currentUser now contains the BROWSER's logged in user.
           // Parse.User.current() for `req` will return the browsers user as well.
+
+          // make sure user's Stripe subscription is still
+          // active, if not needs re-subscribe
+
+
           next();
         },
         function(error) {
@@ -84,14 +89,33 @@ app.use(function(req, res, next)
 app.get('/', function(request, response)
 {
   var currentUser = Parse.User.current();
-  if (! currentUser) {
+  if (! currentUser)
     response.redirect("/signin");
-  }
+  else if (! currentUser.get("isActive"))
+    response.redirect("/subscription");
   else {
-    response.render('homepage', {
-      "currentUser": currentUser,
-      "errorMessage": false,
-      "successMessage": false
+
+    var error   = request.query.error;
+    var success = request.query.success;
+
+    // load IncomingMessage entries linked to
+    // currentUser.twilioPhoneNumber
+    Parse.Cloud.run("listFeedback", {
+      userId: currentUser.id
+    }, {
+      success: function (cloudResponse)
+      {
+        response.render('homepage', {
+          "currentUser": currentUser,
+          "myMessages": cloudResponse.myMessages,
+          "errorMessage": error ? unescape(error) : false,
+          "successMessage": success ? unescape(success) : false
+        });
+      },
+      error: function (cloudResponse)
+      {
+        response.send("Error: " + cloudResponse.message);
+      }
     });
   }
 });
@@ -188,11 +212,22 @@ app.get('/my-account', function(request, response)
   }
   else {
 
+    var planText    = "No Active Subscription";
+    var activeUntil = "N/A";
+
+    if (currentUser.get("isActive")) {
+      planText      = currentUser.get("stripePlan") == "standard" ? "Standard Account" : "Pro Account";
+      activeUntil   = currentUser.get("activeUntil");
+    }
+
     var settings = {
       "officeName": currentUser.get("officeName"),
       "areaCode": currentUser.get("areaCode"),
       "phoneNumber": currentUser.get("twilioPhoneNumber"),
-      "emailAddress": currentUser.get("username")};
+      "emailAddress": currentUser.get("username"),
+      "subscriptionPlan": planText,
+      "subscriptionExpire": activeUntil
+    };
 
     var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
     response.render('my-account', {
@@ -233,6 +268,76 @@ app.get('/my-feedback', function(request, response)
         response.send("Error: " + cloudResponse.message);
       }
     });
+  }
+});
+
+/**
+ * GET /subscription
+ * describes the subscription GET request.
+ * this handler offers the possible to select
+ * a Plan for the App. Checkout is done using
+ * Stripe.
+ **/
+app.get('/subscription', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser)
+    response.redirect("/signin");
+  else if (! currentUser.get("isActive") || ! currentUser.get("stripeSubscriptionId")) {
+    response.render("subscription", {
+      "currentUser": currentUser,
+      "errorMessage": false
+    });
+  }
+  else
+    // active user with active subscription
+    response.redirect("/");
+});
+
+/**
+ * GET /cancel-subscription
+ * describes the cancel-subscription GET request.
+ **/
+app.get('/cancel-subscription', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser) {
+    response.redirect("/signin");
+  }
+  else if (! currentUser.get("isActive"))
+    response.redirect("/subscription");
+  else {
+    Parse.Config.get().then(
+      function(config)
+      {
+        stripeApiKey = config.get("stripeTestSecretKey");
+        apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
+        cancelUrl = apiUrl + "/customers/" + currentUser.get("stripeCustomerId")
+                  + "/subscriptions/" + currentUser.get("stripeSubscriptionId");
+
+        // @see https://stripe.com/docs/api#cancel_subscription
+        Parse.Cloud.httpRequest({
+          method: "DELETE",
+          url: cancelUrl,
+          body: {at_period_end: true}
+        }).then(
+          function(httpRequest)
+          {
+            // next time the subscription expires, it will not
+            // be able to renew.
+            currentUser.set("stripeSubscriptionId", "");
+            currentUser.save(null, {
+              success:function(currentUser) {
+                response.redirect("/?success=" + escape("You have disabled the Automatic Subscription Renewal!"));
+              }
+            });
+          },
+          function(httpRequest)
+          {
+            var object = JSON.parse(httpRequest.text);
+            response.redirect("/?error=" + escape("Could not cancel subscription (Message: " + object.error.message + ")"));
+          });
+      });
   }
 });
 
@@ -454,11 +559,7 @@ app.post('/sendRequest', function(request, response)
 
     if (errors.length)
       // refresh with error messages displayed
-      response.render("homepage", {
-        "currentUser": currentUser,
-        "errorMessage": errors.join(" ", errors),
-        "successMessage": false
-      });
+      response.redirect("/?error=" + escape(errors.join(" ", errors)));
     else {
       // VALID form input, we can now initiate the
       // Feedback Discussion, etc.
@@ -487,26 +588,15 @@ app.post('/sendRequest', function(request, response)
           {
             success: function(cloudResponse) {
               if (cloudResponse.errorMessage)
-                response.render("homepage", {
-                  "currentUser": currentUser,
-                  "errorMessage": cloudResponse.errorMessage,
-                  "successMessage": false
-                });
+                response.redirect("/?error=" + escape(cloudResponse.errorMessage));
               else {
-                response.render("homepage", {
-                  "currentUser": currentUser,
-                  "errorMessage": false,
-                  "successMessage": "Congratulations ! You have sent a Feedback "
-                                  + "Request to your customer '" + twilioAccount.get("firstName") + "'."
-                });
+                success = "Congratulations ! You have sent a Feedback "
+                        + "Request to your customer '" + twilioAccount.get("firstName") + "'.";
+                response.redirect("/?success=" + escape(success));
               }
             },
             error: function(error) {
-              response.render("homepage", {
-                "currentUser": currentUser,
-                "errorMessage": error.message,
-                "successMessage": false
-              });
+              response.redirect("/?error=" + escape(error.message));
             }
           }); /* end Parse.Cloud.run("startTree") */
         },
@@ -515,15 +605,124 @@ app.post('/sendRequest', function(request, response)
           // error happened on /syncAccount, we could not sync
           // the input data with a new TwilioAccount entry.
           // should never happen.
-          response.render("homepage", {
-            "currentUser": currentUser,
-            "errorMessage": error.message,
-            "successMessage": false
-          });
+          response.redirect("/?error=" + escape(error.message));
         }
       }); /* end Parse.Cloud.run("syncAccount") */
     } /* end if (errors.length) block */
   } /* end if (!currentUser) block */
+});
+
+/**
+ * POST /subscription
+ * describes the subscription POST request.
+ * this handler checks for input and a valid Stripe
+ * token, then initiates a Strip Plan subscription.
+ **/
+app.post('/subscription', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser) {
+    response.redirect("/signin");
+  }
+  else {
+    // valid /subscription POST request, session is available.
+    var stripeToken = request.body.stripeToken;
+    var stripeEmail = request.body.stripeEmail;
+    var stripePlan  = request.body.stripePlan;
+    var errors      = [];
+
+    // input validation
+    if (! stripeToken || ! stripeToken.length
+        || ! stripeEmail || ! stripeEmail.length
+        || ! stripePlan || ! stripePlan.length)
+      errors.push("An error occured at Checkout. Please try again.");
+
+    if (errors.length)
+      // refresh with error messages displayed
+      response.render("subscription", {
+        "currentUser": currentUser,
+        "errorMessage": errors.join(" ", errors)
+      });
+    else {
+      // VALID form input, we can now initiate the
+      // Stripe API call for plans subscriptions
+
+      // @see https://stripe.com/docs/api#create_customer
+      // @see https://stripe.com/docs/api#create_subscription
+
+      // get API key from config
+      Parse.Config.get().then(
+        function(config)
+        {
+          stripeApiKey = config.get("stripeTestSecretKey");
+          apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
+
+          // first we need to create a Stripe CUSTOMER
+          // then we can create a Stripe SUBSCRIPTION
+          Parse.Cloud.httpRequest({
+            method: "POST",
+            url: apiUrl + "/customers",
+            body: {
+              source: stripeToken,
+              email: stripeEmail,
+              description: "Stripe Customer for " + stripeEmail + " (" + stripePlan + ")"
+            }
+          }).then(
+            function(httpRequest)
+            {
+              var json   = httpRequest.text;
+              var object = JSON.parse(json);
+              var stripeCustomerId = object.id;
+
+              // now we can initiate the SUBSCRIPTION creation
+              Parse.Cloud.httpRequest({
+                method: "POST",
+                url: apiUrl + "/customers/" + stripeCustomerId + "/subscriptions",
+                body: {
+                  plan: stripePlan
+                }
+              }).then(
+              function(httpRequest)
+              {
+                var json_obj = JSON.parse(httpRequest.text);
+                var create = new Date();
+                var expire = new Date(new Date(create).setMonth(create.getMonth()+1));
+
+                // save stripe data and redirect to homepage
+                currentUser.set("stripeCustomerId", object.id);
+                currentUser.set("stripeSubscriptionId", json_obj.id);
+                currentUser.set("stripeEmail", stripeEmail);
+                currentUser.set("stripePlan", stripePlan);
+                currentUser.set("isActive", true);
+                currentUser.set("activeUntil", expire);
+                currentUser.save(null, {
+                  success:function(currentUser)
+                  {
+                    var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
+                    response.redirect("/?success=" + msg);
+                  }
+                });
+              },
+              function(httpRequest)
+              {
+                var object = JSON.parse(httpRequest.text);
+                response.render("subscription", {
+                  "currentUser": currentUser,
+                  "errorMessage": "Could not create Subscription at Stripe (Message: " + object.error.message + ")"
+                });
+              });
+            },
+            function(httpRequest)
+            {
+              var object = JSON.parse(httpRequest.text);
+              response.render("subscription", {
+                "currentUser": currentUser,
+                "errorMessage": "Could not create Customer at Stripe (Message: " + object.error.message + ")"
+              });
+            });
+        });
+    }
+  }
 });
 
 /**

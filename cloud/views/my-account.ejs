@@ -10,6 +10,28 @@
             <div class="wide">
                 <div class="form-box">
                     <form id="update-settings" name="update-settings" action="/settings" method="post" novalidate="novalidate">
+
+                        <div class="form-row">
+                            <label>Subscription Plan</label>
+                            <input readonly type="text" id="subscriptionPlan" name="subscriptionPlan"
+                                   size="30" value="<%= settings.subscriptionPlan %>"
+                                   required="" class="text login_input">
+                        </div>
+
+                        <div class="form-row">
+                            <label>Next Subscription Payment</label>
+                            <input readonly type="text" id="subscriptionExpire" name="subscriptionExpire"
+                                   size="30" value="<%= settings.subscriptionExpire %>"
+                                   required="" class="text login_input">
+                            <% if (settings.subscriptionExpire != "N/A" && currentUser.get("stripeSubscriptionId")) { %>
+                            <span id="cancel-confirm"
+                                  style="display:none;">Are you sure about
+                                  cancelling your Subscription ?
+                              This action cannot be undone.</span>
+                            <div class="align-center"><a href="/cancel-subscription" id="cancel-action">Cancel Automatic Renewal</a></div>
+                            <% } %>
+                        </div>
+
                         <div class="form-row">
                             <label>Office Name</label>
                             <input readonly type="text" id="officeName" name="officeName"
@@ -46,5 +68,20 @@
             </div>
         </section>
     </div>
+
+<script>
+$(document).ready(function()
+{
+  $("#cancel-action").click(function(e)
+  {
+    if (! confirm($("#cancel-confirm").html())) {
+      e.preventDefault();
+      return false;
+    }
+
+    return true;
+  });
+});
+</script>
 
 <%- include footer -%>

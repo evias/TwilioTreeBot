@@ -59,6 +59,35 @@
                         </div>
 
                         <div class="align-center">We take privacy very seriously.</div>
+
+                        <h3 class="customTitle">Incoming Feedback</h3>
+                        <div class="form-box">
+                        <% if (! myMessages.length) { %>
+                            <div id="#error">
+                                <div><p>You didn't receive any Feedback yet !</div>
+                            </div>
+                        <% } else { %>
+                            <table border="0">
+                                <thead>
+                                    <th>Customer</th>
+                                    <th>Feedback</th>
+                                </thead>
+                                <tbody>
+                            <% for (var i = 0; i < myMessages.length; i++) {
+                                var dateCreated = new Date(myMessages[i].get("createdAt"));
+                                var dateString  = dateCreated.getDate() + "/"
+                                                + dateCreated.getMonth() + "/"
+                                                + dateCreated.getFullYear();
+                                %>
+                                <tr>
+                                    <td style="width: 30%;"><%= myMessages[i].get("customerName") %><br /><em><%= myMessages[i].get("from") %></em><br /><em><%= dateString %></em></td>
+                                    <td style="width: 70%;"><%= myMessages[i].get("body") %></td>
+                                </tr>
+                            <% } %>
+                                </tbody>
+                            </table>
+                        <% } %>
+                        </div>
                     </form>
                 </div>
                 <div class="shadow"></div>
