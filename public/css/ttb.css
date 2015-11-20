@@ -52,15 +52,15 @@ table tr em {
     font-size: 12px;
 }
 
-a#cancel-action:link,
-a#cancel-action:visited {
+a.cancel-action:link,
+a.cancel-action:visited {
   color: #ff0000;
   text-decoration: none;
   font-weight: bold;
 }
 
-a#cancel-action:hover,
-a#cancel-action:active {
+a.cancel-action:hover,
+a.cancel-action:active {
   color: #f96161;
   text-decoration: underline;
   font-weight: bold;

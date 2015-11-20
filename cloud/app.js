@@ -215,25 +215,87 @@ app.get('/my-account', function(request, response)
     var planText    = "No Active Subscription";
     var activeUntil = "N/A";
 
-    if (currentUser.get("isActive")) {
-      planText      = currentUser.get("stripePlan") == "standard" ? "Standard Account" : "Pro Account";
-      activeUntil   = currentUser.get("activeUntil");
-    }
-
     var settings = {
       "officeName": currentUser.get("officeName"),
       "areaCode": currentUser.get("areaCode"),
       "phoneNumber": currentUser.get("twilioPhoneNumber"),
       "emailAddress": currentUser.get("username"),
-      "subscriptionPlan": planText,
-      "subscriptionExpire": activeUntil
+      "subscriptionPlan": "No active Subscription",
+      "subscriptionExpire": "N/A"
     };
 
-    var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
-    response.render('my-account', {
-      "currentUser": currentUser,
-      "settings": settings
-    });
+    Parse.Config.get().then(
+      function(config)
+      {
+        if (! currentUser.get("stripeCustomerId")) {
+          // stripeCustomerId not set yet, means no
+          // subscription will be available either.
+          // render here already because HTTP request
+          // is not needed to get plan details.
+
+          var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
+          response.render('my-account', {
+            "currentUser": currentUser,
+            "settings": settings,
+            "errorMessage": false
+          });
+        }
+        else {
+          // check for active subscription and get
+          // details about the plan.
+
+          stripeApiKey = config.get("stripeTestSecretKey");
+          apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1"
+                 + "/customers/" + currentUser.get("stripeCustomerId")
+                 + "/subscription";
+
+          Parse.Cloud.httpRequest({
+            method: "GET",
+            url: apiUrl
+          }).then(
+            function(httpRequest)
+            {
+              var err_msg = false;
+              var object = JSON.parse(httpRequest.text);
+              if (object.error) {
+                err_msg = "No active Subscriptions found. (Message: "
+                        + object.error.message + ")";
+                planText    = "No active Subscription",
+                activeUntil = "N/A";
+              }
+              else {
+                planText    = object.plan.name;
+                activeUntil = currentUser.get("activeUntil");
+              }
+
+              var settings = {
+                "officeName": currentUser.get("officeName"),
+                "areaCode": currentUser.get("areaCode"),
+                "phoneNumber": currentUser.get("twilioPhoneNumber"),
+                "emailAddress": currentUser.get("username"),
+                "subscriptionPlan": planText,
+                "subscriptionExpire": activeUntil
+              };
+
+              response.render('my-account', {
+                "currentUser": currentUser,
+                "settings": settings,
+                "errorMessage": false
+              });
+            },
+            function(httpRequest)
+            {
+              var object  = JSON.parse(httpRequest.text);
+              var err_msg = "Error fetching Subscription (Message: "
+                          + object.error.message + ")";
+              response.render('my-account', {
+                "currentUser": currentUser,
+                "settings": settings,
+                "errorMessage": object.error.message
+              });
+            });
+        }
+      });
   }
 });
 
@@ -284,10 +346,39 @@ app.get('/subscription', function(request, response)
   if (! currentUser)
     response.redirect("/signin");
   else if (! currentUser.get("isActive") || ! currentUser.get("stripeSubscriptionId")) {
-    response.render("subscription", {
-      "currentUser": currentUser,
-      "errorMessage": false
-    });
+    // fetch plans from Stripe, then render
+    // subscription view for user to select.
+    Parse.Config.get().then(
+      function(config)
+      {
+        stripeApiKey = config.get("stripeTestSecretKey");
+        apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
+
+        Parse.Cloud.httpRequest({
+          method: "GET",
+          url: apiUrl + "/plans?limit=3"
+        }).then(
+          function(httpRequest)
+          {
+            var object = JSON.parse(httpRequest.text);
+            response.render("subscription", {
+              "currentUser": currentUser,
+              "stripePlans": object.data,
+              "errorMessage": false
+            });
+          },
+          function(httpRequest)
+          {
+            var object  = JSON.parse(httpRequest.text);
+            var err_msg = "Could not list Stripe Plans (Message: "
+                        + object.error.message + ")";
+            response.render("subscription", {
+              "currentUser": currentUser,
+              "stripePlans": [],
+              "errorMessage": object.error.message
+            });
+          });
+      });
   }
   else
     // active user with active subscription

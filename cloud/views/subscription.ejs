@@ -26,17 +26,46 @@
                             </div>
                         </div>
 
+                        <div id="success-content" style="display:none">
+                            <div>
+                                <p>You have selected a %%PLAN%% account, now please click
+                                "Subscribe Now" ! Or click Cancel to go back:
+                                <a href="#" class="cancel-action">Cancel</a></p>
+                            </div>
+                        </div>
                         <div id="success" style="display:none;">
                             <div>
                                 <p>You have selected a %%PLAN%% account, now please click
                                 "Subscribe Now" ! Or click Cancel to go back:
-                                <a href="#" id="cancel-action">Cancel</a></p>
+                                <a href="#" class="cancel-action">Cancel</a></p>
                             </div>
                         </div>
 
                         <div class="form-row">
-                            <a href="#" id="subscribe-standard" class="btn subscribe-btn" data-rel="standard">Subscribe to Standard</a>
-                            <a href="#" id="subscribe-pro" class="btn subscribe-btn" data-rel="pro">Subscribe to PRO</a>
+
+                        <% if (! stripePlans.length) { %>
+
+                            <div id="unknown-error">
+                                <div>
+                                    <p>Error: No Stripe plans could be found !</p>
+                                </div>
+                            </div>
+
+                        <% } else { %>
+
+                            <% for (var i = 0; i < stripePlans.length; i++) {
+                                var plan = stripePlans[i];
+                                %>
+
+                            <a href="#" class="btn subscribe-btn"
+                                data-id="<%= plan.id %>"
+                                data-amt="<%= plan.amount %>"
+                                data-name="<%= plan.name %>"
+                                data-currency="<%= plan.currency %>"
+                                data-interval="<%= plan.interval %>">Subscribe to <%= plan.name %></a>
+
+                            <% } %>
+                        <% } %>
                         </div>
 
                         <div class="form-row">
@@ -60,29 +89,29 @@
 <script>
 var registerClickListeners = function()
 {
-    $("#subscribe-standard").on("click", function(e)
+    $(".subscribe-btn").on("click", function(e)
     {
-        stripeHandler.open({
-          name: 'ptFollowUp Standard',
-          description: 'ptFollowUp Standard ($4.99/month)',
-          panelLabel: "Subscribe",
-          amount: 499,
-          allowRememberMe: false
-        });
-        $("#stripe-plan").val("standard");
-        e.preventDefault();
-    });
+        $(".subscribe-btn").removeClass("chosen");
 
-    $("#subscribe-pro").on("click", function(e)
-    {
+        var planId   = $(this).attr("data-id");
+        var planAmt  = parseInt($(this).attr("data-amt"));
+        var planName = $(this).attr("data-name");
+        var planCur  = $(this).attr("data-currency") == "usd" ? "$" : $(this).attr("data-currency");
+        var planInt  = $(this).attr("data-interval");
+        var desc     = planName + " (" + planCur + (planAmt/100)
+                     + "/" + planInt + ")";
+
         stripeHandler.open({
-          name: 'ptFollowUp Pro',
-          description: 'ptFollowUp Pro Subscription ($9.99/month)',
+          name: planName,
+          description: desc,
           panelLabel: "Subscribe",
-          amount: 999,
+          amount: planAmt,
           allowRememberMe: false
         });
-        $("#stripe-plan").val("pro");
+
+        $("#stripe-plan").val(planId);
+        $(this).addClass("chosen");
+
         e.preventDefault();
     });
 };
@@ -90,8 +119,8 @@ var registerClickListeners = function()
 var unregisterClickListeners = function()
 {
     // no more button click possible.
-    $("#subscribe-standard, #subscribe-pro").off("click");
-    $("#subscribe-standard, #subscribe-pro").on("click", function(e)
+    $(".subscribe-btn").off("click");
+    $(".subscribe-btn").on("click", function(e)
         {
             e.preventDefault();
             return false;
@@ -100,7 +129,7 @@ var unregisterClickListeners = function()
 
 var registerCancelListener = function()
 {
-    $("#cancel-action").click(function(e)
+    $(".cancel-action").click(function(e)
     {
         e.preventDefault();
 
@@ -115,6 +144,7 @@ var registerCancelListener = function()
         registerClickListeners();
 
         $("#success").fadeOut("slow");
+        $("#success").html($("#success-content").html());
         return false;
     });
 };
@@ -137,17 +167,16 @@ function(config)
             unregisterClickListeners();
 
             var chosen_plan  = $("#stripe-plan").val();
-            var other_plan   = chosen_plan == 'pro' ? 'standard' : 'pro';
 
             $(".subscribe-btn").each(function()
             {
                 $(this).attr("data-bg-backup", $(this).css("background"));
             });
 
-            $("#subscribe-" + chosen_plan).css("background", "#77b054");
-            $("#subscribe-" + other_plan).css("background", "#aba6a6");
+            $(".subscribe-btn[data-id='" + chosen_plan + "']").css("background", "#77b054");
+            $(".subscribe-btn[data-id!='" + chosen_plan + "']").css("background", "#aba6a6");
 
-            var plan_text    = chosen_plan == "pro" ? "Pro" : "Standard";
+            var plan_text    = $(".subscribe-btn[data-id='" + chosen_plan + "']").attr("data-name");
             var success_html = $("#success").html().replace("%%PLAN%%", plan_text);
             $("#success").html(success_html);
             $("#success").fadeIn("slow");

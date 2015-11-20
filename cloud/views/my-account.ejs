@@ -28,7 +28,7 @@
                                   style="display:none;">Are you sure about
                                   cancelling your Subscription ?
                               This action cannot be undone.</span>
-                            <div class="align-center"><a href="/cancel-subscription" id="cancel-action">Cancel Automatic Renewal</a></div>
+                            <div class="align-center"><a href="/cancel-subscription" class="cancel-action">Cancel Automatic Renewal</a></div>
                             <% } %>
                         </div>
 
@@ -72,7 +72,7 @@
 <script>
 $(document).ready(function()
 {
-  $("#cancel-action").click(function(e)
+  $(".cancel-action").click(function(e)
   {
     if (! confirm($("#cancel-confirm").html())) {
       e.preventDefault();
