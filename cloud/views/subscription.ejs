@@ -54,7 +54,9 @@
                         <% } else { %>
 
                             <% for (var i = 0; i < stripePlans.length; i++) {
-                                var plan = stripePlans[i];
+                                var plan     = stripePlans[i];
+                                var amount   = plan.amount / 100;
+                                var interval = plan.interval;
                                 %>
 
                             <a href="#" class="btn subscribe-btn"
@@ -62,7 +64,7 @@
                                 data-amt="<%= plan.amount %>"
                                 data-name="<%= plan.name %>"
                                 data-currency="<%= plan.currency %>"
-                                data-interval="<%= plan.interval %>">Subscribe to <%= plan.name %></a>
+                                data-interval="<%= plan.interval %>">Subscribe to <b><%= plan.name %></b> ($<%= amount %>/<%= interval %>)</a><br />
 
                             <% } %>
                         <% } %>
@@ -104,7 +106,7 @@ var registerClickListeners = function()
         stripeHandler.open({
           name: planName,
           description: desc,
-          panelLabel: "Subscribe",
+          panelLabel: "Subscribe for",
           amount: planAmt,
           allowRememberMe: false
         });

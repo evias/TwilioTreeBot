@@ -236,8 +236,7 @@ app.get('/my-account', function(request, response)
           var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
           response.render('my-account', {
             "currentUser": currentUser,
-            "settings": settings,
-            "errorMessage": false
+            "settings": settings
           });
         }
         else {
@@ -255,15 +254,11 @@ app.get('/my-account', function(request, response)
           }).then(
             function(httpRequest)
             {
-              var err_msg = false;
               var object = JSON.parse(httpRequest.text);
-              if (object.error) {
-                err_msg = "No active Subscriptions found. (Message: "
-                        + object.error.message + ")";
-                planText    = "No active Subscription",
-                activeUntil = "N/A";
-              }
-              else {
+
+              planText    = "No active Subscription",
+              activeUntil = "N/A";
+              if (object.plan) {
                 planText    = object.plan.name;
                 activeUntil = currentUser.get("activeUntil");
               }
@@ -279,19 +274,16 @@ app.get('/my-account', function(request, response)
 
               response.render('my-account', {
                 "currentUser": currentUser,
-                "settings": settings,
-                "errorMessage": false
+                "settings": settings
               });
             },
             function(httpRequest)
             {
-              var object  = JSON.parse(httpRequest.text);
-              var err_msg = "Error fetching Subscription (Message: "
-                          + object.error.message + ")";
+              planText    = "No active Subscription",
+              activeUntil = "N/A";
               response.render('my-account', {
                 "currentUser": currentUser,
-                "settings": settings,
-                "errorMessage": object.error.message
+                "settings": settings
               });
             });
         }
