@@ -243,7 +243,8 @@ app.get('/my-account', function(request, response)
           // check for active subscription and get
           // details about the plan.
 
-          stripeApiKey = config.get("stripeTestSecretKey");
+          whichKey = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
+          stripeApiKey = config.get(whichKey + "SecretKey");
           apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1"
                  + "/customers/" + currentUser.get("stripeCustomerId")
                  + "/subscription";
@@ -343,12 +344,13 @@ app.get('/subscription', function(request, response)
     Parse.Config.get().then(
       function(config)
       {
-        stripeApiKey = config.get("stripeTestSecretKey");
+        whichKey = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
+        stripeApiKey = config.get(whichKey + "SecretKey");
         apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
 
         Parse.Cloud.httpRequest({
           method: "GET",
-          url: apiUrl + "/plans?limit=3"
+          url: apiUrl + "/plans"
         }).then(
           function(httpRequest)
           {

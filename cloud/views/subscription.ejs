@@ -57,6 +57,7 @@
                                 var plan     = stripePlans[i];
                                 var amount   = plan.amount / 100;
                                 var interval = plan.interval;
+                                var currency = plan.currency == "usd" ? "$" : "€";
                                 %>
 
                             <a href="#" class="btn subscribe-btn"
@@ -64,7 +65,7 @@
                                 data-amt="<%= plan.amount %>"
                                 data-name="<%= plan.name %>"
                                 data-currency="<%= plan.currency %>"
-                                data-interval="<%= plan.interval %>">Subscribe to <b><%= plan.name %></b> ($<%= amount %>/<%= interval %>)</a><br />
+                                data-interval="<%= plan.interval %>">Subscribe to <b><%= plan.name %></b> (<%= currency %><%= amount %>/<%= interval %>)</a><br />
 
                             <% } %>
                         <% } %>
@@ -98,7 +99,8 @@ var registerClickListeners = function()
         var planId   = $(this).attr("data-id");
         var planAmt  = parseInt($(this).attr("data-amt"));
         var planName = $(this).attr("data-name");
-        var planCur  = $(this).attr("data-currency") == "usd" ? "$" : $(this).attr("data-currency");
+        var origCur  = $(this).attr("data-currency");
+        var planCur  = $(this).attr("data-currency") == "usd" ? "$" : "€";
         var planInt  = $(this).attr("data-interval");
         var desc     = planName + " (" + planCur + (planAmt/100)
                      + "/" + planInt + ")";
@@ -107,6 +109,7 @@ var registerClickListeners = function()
           name: planName,
           description: desc,
           panelLabel: "Subscribe for",
+          currency: origCur,
           amount: planAmt,
           allowRememberMe: false
         });
@@ -158,8 +161,10 @@ Parse.initialize("ThfEtMA3gRRKGjcf63fNTb297LWMUuhPyZtAeOhu", "tr7KcgAiaNSDMNgiEA
 Parse.Config.get().then(
 function(config)
 {
+    whichKey      = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
+    stripeApiKey  = config.get(whichKey + "PublicKey");
     stripeHandler = StripeCheckout.configure({
-        key: config.get("stripeTestPublicKey"),
+        key: stripeApiKey,
         image: '/images/logo.png',
         locale: 'auto',
         token: function(token) {
