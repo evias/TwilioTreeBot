@@ -74,6 +74,31 @@ app.use(function(req, res, next)
         });
 });
 
+app.use(function(req, res, next)
+{
+  Parse.Config.get().then(
+  function(config)
+  {
+    whichKey = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
+    stripeApiKey = config.get(whichKey + "SecretKey");
+    apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
+
+    Parse.Cloud.httpRequest({
+      method: "GET",
+      url: apiUrl + "/plans"
+    }).then(
+      function(httpRequest)
+      {
+        var object = JSON.parse(httpRequest.text);
+
+        res.locals.stripePlans = object.data;
+        next();
+      },
+      function(httpRequest) {}
+    );
+  });
+});
+
 /*******************************************************************************
  * HTTP GET requests handlers for TwilioTreeBot
  * @link https://twiliotreebot.parseapp.com
@@ -339,40 +364,10 @@ app.get('/subscription', function(request, response)
   if (! currentUser)
     response.redirect("/signin");
   else if (! currentUser.get("isActive") || ! currentUser.get("stripeSubscriptionId")) {
-    // fetch plans from Stripe, then render
-    // subscription view for user to select.
-    Parse.Config.get().then(
-      function(config)
-      {
-        whichKey = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
-        stripeApiKey = config.get(whichKey + "SecretKey");
-        apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
-
-        Parse.Cloud.httpRequest({
-          method: "GET",
-          url: apiUrl + "/plans"
-        }).then(
-          function(httpRequest)
-          {
-            var object = JSON.parse(httpRequest.text);
-            response.render("subscription", {
-              "currentUser": currentUser,
-              "stripePlans": object.data,
-              "errorMessage": false
-            });
-          },
-          function(httpRequest)
-          {
-            var object  = JSON.parse(httpRequest.text);
-            var err_msg = "Could not list Stripe Plans (Message: "
-                        + object.error.message + ")";
-            response.render("subscription", {
-              "currentUser": currentUser,
-              "stripePlans": [],
-              "errorMessage": object.error.message
-            });
-          });
-      });
+    response.render("subscription", {
+      "currentUser": currentUser,
+      "errorMessage": false
+    });
   }
   else
     // active user with active subscription

@@ -3,6 +3,9 @@ TwilioTreeBot is a Parse CloudCode App providing with CloudCode Functions
 and a nodeJS (+ express) web application. This package can be used for any
 App at Parse.com in combination with a Twilio Account.
 
+A Demo of this App deployed to a Parse Hosting can be found at following
+URL : https://twiliotreebot.parseapp.com
+
 Deployment is very easy as the App can be deployed on the free Parse.com
 tiers. You'll find more informations about this here: https://www.parse.com/docs/cloudcode
 
