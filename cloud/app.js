@@ -74,6 +74,31 @@ app.use(function(req, res, next)
         });
 });
 
+app.use(function(req, res, next)
+{
+  Parse.Config.get().then(
+  function(config)
+  {
+    whichKey = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
+    stripeApiKey = config.get(whichKey + "SecretKey");
+    apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
+
+    Parse.Cloud.httpRequest({
+      method: "GET",
+      url: apiUrl + "/plans"
+    }).then(
+      function(httpRequest)
+      {
+        var object = JSON.parse(httpRequest.text);
+
+        res.locals.stripePlans = object.data;
+        next();
+      },
+      function(httpRequest) {}
+    );
+  });
+});
+
 /*******************************************************************************
  * HTTP GET requests handlers for TwilioTreeBot
  * @link https://twiliotreebot.parseapp.com
@@ -215,25 +240,80 @@ app.get('/my-account', function(request, response)
     var planText    = "No Active Subscription";
     var activeUntil = "N/A";
 
-    if (currentUser.get("isActive")) {
-      planText      = currentUser.get("stripePlan") == "standard" ? "Standard Account" : "Pro Account";
-      activeUntil   = currentUser.get("activeUntil");
-    }
-
     var settings = {
       "officeName": currentUser.get("officeName"),
       "areaCode": currentUser.get("areaCode"),
       "phoneNumber": currentUser.get("twilioPhoneNumber"),
       "emailAddress": currentUser.get("username"),
-      "subscriptionPlan": planText,
-      "subscriptionExpire": activeUntil
+      "subscriptionPlan": "No active Subscription",
+      "subscriptionExpire": "N/A"
     };
 
-    var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
-    response.render('my-account', {
-      "currentUser": currentUser,
-      "settings": settings
-    });
+    Parse.Config.get().then(
+      function(config)
+      {
+        if (! currentUser.get("stripeCustomerId")) {
+          // stripeCustomerId not set yet, means no
+          // subscription will be available either.
+          // render here already because HTTP request
+          // is not needed to get plan details.
+
+          var errorMessage = request.query.errorMessage ? request.query.errorMessage : false;
+          response.render('my-account', {
+            "currentUser": currentUser,
+            "settings": settings
+          });
+        }
+        else {
+          // check for active subscription and get
+          // details about the plan.
+
+          whichKey = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
+          stripeApiKey = config.get(whichKey + "SecretKey");
+          apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1"
+                 + "/customers/" + currentUser.get("stripeCustomerId")
+                 + "/subscription";
+
+          Parse.Cloud.httpRequest({
+            method: "GET",
+            url: apiUrl
+          }).then(
+            function(httpRequest)
+            {
+              var object = JSON.parse(httpRequest.text);
+
+              planText    = "No active Subscription",
+              activeUntil = "N/A";
+              if (object.plan) {
+                planText    = object.plan.name;
+                activeUntil = currentUser.get("activeUntil");
+              }
+
+              var settings = {
+                "officeName": currentUser.get("officeName"),
+                "areaCode": currentUser.get("areaCode"),
+                "phoneNumber": currentUser.get("twilioPhoneNumber"),
+                "emailAddress": currentUser.get("username"),
+                "subscriptionPlan": planText,
+                "subscriptionExpire": activeUntil
+              };
+
+              response.render('my-account', {
+                "currentUser": currentUser,
+                "settings": settings
+              });
+            },
+            function(httpRequest)
+            {
+              planText    = "No active Subscription",
+              activeUntil = "N/A";
+              response.render('my-account', {
+                "currentUser": currentUser,
+                "settings": settings
+              });
+            });
+        }
+      });
   }
 });
 

@@ -3,6 +3,9 @@ TwilioTreeBot is a Parse CloudCode App providing with CloudCode Functions
 and a nodeJS (+ express) web application. This package can be used for any
 App at Parse.com in combination with a Twilio Account.
 
+A Demo of this App deployed to a Parse Hosting can be found at following
+URL : https://twiliotreebot.parseapp.com
+
 Deployment is very easy as the App can be deployed on the free Parse.com
 tiers. You'll find more informations about this here: https://www.parse.com/docs/cloudcode
 
@@ -65,6 +68,20 @@ Your Feedback Management app is now online !
     * jQuery 1.11
     * Parse CloudCode
     * uses Twilio API version 2010-04-01
+
+### Hints / Advices
+Using git, when you will modify your .parse.local file of the clone in order
+to configure your parse command line tools to use your own Parse App, git will
+see the .parse.local file as modified. To avoid having to communicate my Parse
+App details, I use following command to mark the .parse.local file unchanged:
+
+    $ git update-index [--assume-unchanged|--no-assume-unchanged]
+
+### Git Branching
+2 git branches will usually be updated in this repository, being the branch
+*master* for releases (see git tags) and the branch *develop* for development
+of features. Hotfixes might branch from *master* but will usually be tackled
+from a *develop* branch or sub-branch.
 
 ### Support / Contact
 You can contact me anytime at my e-mail address and I will be glad to answer
