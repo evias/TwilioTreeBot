@@ -915,3 +915,101 @@ Parse.Cloud.define("listFeedback", function(request, response)
         response.error("User could not be loaded: " + error.message);
     }});
 });
+
+Parse.Cloud.define("cancelSubscription", function(request, response)
+{
+    var userId = "undefined" != typeof request.params.userId ?
+                request.params.userId : "";
+    var userToken = "undefined" != typeof request.params.userToken ?
+                request.params.userToken : "";
+
+    // we need to "become" the user because we will
+    // update some data of it after all cancelling
+    // tasks are done.
+    Parse.User.become(userToken).then(
+    function(currentUser)
+    {
+      // currentUser now contains the BROWSER's logged in user.
+      // Parse.User.current() will now return the browsers user as well.
+      twilioNumber = new Parse.Query(TwilioNumber);
+      twilioNumber.equalTo("userId", currentUser.id);
+      twilioNumber.descending("createdAt");
+      twilioNumber.first({
+      success: function(twilioNumber) {
+        // load config for initiating Stripe and Twilio
+        // REST API requests.
+        Parse.Config.get().then(
+        function(parseConfig)
+        {
+          whichKey     = parseConfig.get("whichStripeKey"); // "stripeTest" or "stripeLive"
+          stripeApiKey = parseConfig.get(whichKey + "SecretKey");
+          apiUrl    = "https://" + stripeApiKey + ":@api.stripe.com/v1";
+          cancelUrl = apiUrl + "/customers/" + currentUser.get("stripeCustomerId")
+                    + "/subscriptions/" + currentUser.get("stripeSubscriptionId");
+
+          deleteNumberUrl = "https://" + parseConfig.get("twilioAppSID") + ":"
+                          + parseConfig.get("twilioAppToken") + "@api.twilio.com/2010-04-01"
+                          + "/Accounts/" + parseConfig.get("twilioAccountSID")
+                          + "/IncomingPhoneNumbers/" + twilioNumber.get("numberSid");
+
+          // first delete subscription at Stripe
+          // then delete number at Twilio
+          // @see https://stripe.com/docs/api#cancel_subscription
+          // @see https://www.twilio.com/docs/api/rest/incoming-phone-numbers
+          Parse.Cloud.httpRequest({
+            method: "DELETE",
+            url: cancelUrl,
+            body: {}
+          }).then(
+          function(httpRequest)
+          {
+            // update user data, will be considered UNSUBSCRIBED
+            currentUser.set("isActive", false);
+            currentUser.unset("stripeSubscriptionId");
+            currentUser.unset("twilioPhoneNumber");
+            currentUser.unset("activeUntil");
+            currentUser.save(null, {
+            success:function(currentUser) {
+              // now delete number at Twilio
+              Parse.Cloud.httpRequest({
+                method: "DELETE",
+                url: deleteNumberUrl,
+                body: {}
+              }).then(
+              function(httpRequest)
+              {
+                /* remove TwilioNumber entry from Parse db*/
+                twilioNumber.destroy({
+                  success:function(twilioNumber)
+                  {
+                    // done cancelling subscription, return the
+                    // updated user object to the App.
+                    response.success({
+                      "result": true,
+                      "currentUser": currentUser});
+                  }
+                });
+              },
+              function(httpRequest)
+              {
+                var object = JSON.parse(httpRequest.text);
+                console.log("Error deleting number: " + object.error.message);
+                response.error(object.error.message);
+              });
+            }});
+          },
+          function(httpRequest)
+          {
+            var object = JSON.parse(httpRequest.text);
+            console.log("Error cancelling subscription: " + object.error.message);
+            response.error(object.error.message);
+          });
+        });
+      }});
+    },
+    function(error) {
+      // not logged in
+      console.log("Error becoming User: " + error.message);
+      response.error(error.message);
+    });
+});

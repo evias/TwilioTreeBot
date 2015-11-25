@@ -243,7 +243,7 @@ app.get('/my-account', function(request, response)
     var settings = {
       "officeName": currentUser.get("officeName"),
       "areaCode": currentUser.get("areaCode"),
-      "phoneNumber": currentUser.get("twilioPhoneNumber"),
+      "phoneNumber": "N/A",
       "emailAddress": currentUser.get("username"),
       "subscriptionPlan": "No active Subscription",
       "subscriptionExpire": "N/A"
@@ -385,39 +385,22 @@ app.get('/cancel-subscription', function(request, response)
     response.redirect("/signin");
   }
   else if (! currentUser.get("isActive"))
-    response.redirect("/subscription");
+    response.redirect("/my-account");
   else {
-    Parse.Config.get().then(
-      function(config)
+    Parse.Cloud.run("cancelSubscription", {
+      userId: currentUser.id,
+      userToken: request.session.sessionToken
+    }, {
+      success: function (cloudResponse)
       {
-        stripeApiKey = config.get("stripeTestSecretKey");
-        apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
-        cancelUrl = apiUrl + "/customers/" + currentUser.get("stripeCustomerId")
-                  + "/subscriptions/" + currentUser.get("stripeSubscriptionId");
-
-        // @see https://stripe.com/docs/api#cancel_subscription
-        Parse.Cloud.httpRequest({
-          method: "DELETE",
-          url: cancelUrl,
-          body: {at_period_end: true}
-        }).then(
-          function(httpRequest)
-          {
-            // next time the subscription expires, it will not
-            // be able to renew.
-            currentUser.set("stripeSubscriptionId", "");
-            currentUser.save(null, {
-              success:function(currentUser) {
-                response.redirect("/?success=" + escape("You have disabled the Automatic Subscription Renewal!"));
-              }
-            });
-          },
-          function(httpRequest)
-          {
-            var object = JSON.parse(httpRequest.text);
-            response.redirect("/?error=" + escape("Could not cancel subscription (Message: " + object.error.message + ")"));
-          });
-      });
+        response.redirect("/subscription");
+      },
+      error: function (cloudResponse)
+      {
+        console.log("Error cancelling Subscription: " + cloudResponse.message);
+        response.redirect("/my-account");
+      }
+    });
   }
 });
 

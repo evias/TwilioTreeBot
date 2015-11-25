@@ -25,9 +25,7 @@
                                    required="" class="text login_input">
                             <% if (settings.subscriptionExpire != "N/A" && currentUser.get("stripeSubscriptionId")) { %>
                             <span id="cancel-confirm"
-                                  style="display:none;">Are you sure about
-                                  cancelling your Subscription ?
-                              This action cannot be undone.</span>
+                                  style="display:none;">Cancelling your account means you will lose your phone number. Are you sure you want to cancel?</span>
                             <div class="align-center"><a href="/cancel-subscription" class="cancel-action">Cancel Automatic Renewal</a></div>
                             <% } %>
                         </div>
