@@ -747,24 +747,55 @@ app.post('/subscription', function(request, response)
               }).then(
               function(httpRequest)
               {
-                var json_obj = JSON.parse(httpRequest.text);
+                var stripeResponse = JSON.parse(httpRequest.text);
                 var create = new Date();
                 var expire = new Date(new Date(create).setMonth(create.getMonth()+1));
 
-                // save stripe data and redirect to homepage
                 currentUser.set("stripeCustomerId", object.id);
-                currentUser.set("stripeSubscriptionId", json_obj.id);
+                currentUser.set("stripeSubscriptionId", stripeResponse.id);
                 currentUser.set("stripeEmail", stripeEmail);
                 currentUser.set("stripePlan", stripePlan);
                 currentUser.set("isActive", true);
                 currentUser.set("activeUntil", expire);
-                currentUser.save(null, {
-                  success:function(currentUser)
-                  {
-                    var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
-                    response.redirect("/?success=" + msg);
-                  }
-                });
+
+                if (! currentUser.get("twilioPhoneNumber")) {
+                  // user needs a new twilio number- coming here
+                  // means the user cancelled his previous subscription
+                  Parse.Cloud.run("createNumber", {
+                    userId: currentUser.id,
+                    userArea: currentUser.get("areaCode"),
+                    country: currentUser.get("countryISO")
+                  }, {
+                    success: function (cloudResponse)
+                    {
+                      var feedbackNumber = cloudResponse.twilioNumber.get("phoneNumber");
+                      currentUser.set("twilioPhoneNumber", feedbackNumber);
+                      currentUser.save(null, {
+                        success: function(currentUser) {
+                          var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
+                          response.redirect("/?success=" + msg);
+                        }
+                      });
+                    },
+                    error: function (error)
+                    {
+                      response.render('subscription', {
+                        "currentUser": currentUser,
+                        "errorMessage": error.message});
+                    }
+                  });
+                }
+                else {
+                  // no need to purchase new number. coming here means
+                  // the user just registered to the platform.
+                  currentUser.save(null, {
+                    success:function(currentUser)
+                    {
+                      var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
+                      response.redirect("/?success=" + msg);
+                    }
+                  });
+                }
               },
               function(httpRequest)
               {
