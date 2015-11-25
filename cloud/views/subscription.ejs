@@ -182,13 +182,7 @@ function(config)
 
             $(".subscribe-btn[data-id='" + chosen_plan + "']").css("background", "#77b054");
             $(".subscribe-btn[data-id!='" + chosen_plan + "']").css("background", "#aba6a6");
-
-            var plan_text    = $(".subscribe-btn[data-id='" + chosen_plan + "']").attr("data-name");
-            var success_html = $("#success").html().replace("%%PLAN%%", plan_text);
-            $("#success").html(success_html);
-            $("#success").fadeIn("slow");
-
-            registerCancelListener();
+            $("#subscription-submit").click();
         }
     });
 },
