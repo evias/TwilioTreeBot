@@ -75,7 +75,7 @@
                             <input type="hidden" name="stripeToken" id="stripe-token" />
                             <input type="hidden" name="stripeEmail" id="stripe-email" />
                             <input type="hidden" name="stripePlan" id="stripe-plan" />
-                            <input id="subscription-submit" type="submit" name="submit" value="Subscribe Now" class="btn btn-wide">
+                            <input id="subscription-submit" type="submit" name="submit" value="Subscribe Now" class="btn btn-wide" style="display: none;">
                         </div>
 
                     </form>
@@ -200,6 +200,7 @@ $(document).ready(function()
             "background": "#fff url(/images/ajax-loading.gif) no-repeat center center"
         });
         $("#subscription-submit").val("");
+        $("#subscription-submit").fadeIn("fast");
 
         if (! $("#stripe-token").val().length) {
             $("#subscription-submit").css("background", bg_backup);
