@@ -404,6 +404,40 @@ app.get('/cancel-subscription', function(request, response)
   }
 });
 
+/**
+ * GET /twilio-subaccounts
+ * describes the twilio-subaccounts GET request.
+ * this handler loads and displays the Parse.User entries
+ * for which the Twilio Subaccount must be deleted.
+ **/
+app.get('/twilio-subaccounts', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser || ! currentUser.get("isAdmin")) {
+    response.redirect("/signin");
+  }
+  else {
+
+    // load IncomingMessage entries linked to
+    // currentUser.twilioPhoneNumber
+    Parse.Cloud.run("listCancelledAccounts", {
+      userId: currentUser.id
+    }, {
+      success: function (cloudResponse)
+      {
+        response.render('subaccounts', {
+          "currentUser": currentUser,
+          "cancelledUsers": cloudResponse.cancelledUsers
+        });
+      },
+      error: function (cloudResponse)
+      {
+        response.send("Error: " + cloudResponse.message);
+      }
+    });
+  }
+});
+
 
 /*******************************************************************************
  * HTTP POST requests handlers for TwilioTreeBot

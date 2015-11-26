@@ -35,6 +35,9 @@
           <ul>
             <li><a href="/">Home</a></li>
             <% if (currentUser) { %>
+              <% if (currentUser.get("isAdmin")) { %>
+              <li><a href="/twilio-subaccounts">Twilio Subaccounts</a></li>
+              <% } %>
             <li><a href="/my-account">My Account</a></li>
             <li><a href="/signout">Logout</a></li>
             <% } else { %>

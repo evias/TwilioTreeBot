@@ -1,0 +1,42 @@
+
+<%- include header -%>
+
+    <div class="right">
+        <section>
+            <div class="title align-center">
+                <h2>Twilio Subaccounts</h2>
+                <p>This page lists the Twilio subaccounts you can delete!</p>
+            </div>
+            <div class="wide">
+                <div class="form-box">
+                <% if (! cancelledUsers.length) { %>
+                    <div id="#error">
+                        <div><p>Currently no Twilio Subaccount must be deleted !</div>
+                    </div>
+                <% } else { %>
+                    <table border="0">
+                        <thead>
+                            <th>Name</th>
+                            <th>Email</th>
+                        </thead>
+                        <tbody>
+                    <% for (var i = 0; i < cancelledUsers.length; i++) {
+                        %>
+                        <tr>
+                            <td style="width: 30%;"><%= cancelledUsers[i].get("officeName") %><br /></td>
+                            <td style="width: 70%;"><%= cancelledUsers[i].get("email") %></td>
+                        </tr>
+                    <% } %>
+                        </tbody>
+                    </table>
+                <% } %>
+                </div>
+                <div class="shadow"></div>
+                <div class="meta align-center">
+                    <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+<%- include footer -%>

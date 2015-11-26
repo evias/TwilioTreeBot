@@ -228,6 +228,18 @@ var FeedbackDiscussion = Parse.Object.extend("FeedbackDiscussion",
 /* end Model FeedbackDiscussion */
 
 /**
+ * Model class ScheduledFeedback
+ * This class describes a ScheduledFeedback entry in the Parse App.
+ * It simply extends the Parse.Object object with no method
+ * descriptions as of now.
+ **/
+var ScheduledFeedback = Parse.Object.extend("ScheduledFeedback",
+  {},
+  {}
+);
+/* end Model ScheduledFeedback */
+
+/**
  * Model class FeedbackService
  * This class describes a FeedbackService Object in the Parse App.
  * Static methods implemented include:
@@ -240,32 +252,51 @@ var FeedbackDiscussion = Parse.Object.extend("FeedbackDiscussion",
 var FeedbackService = Parse.Object.extend("FeedbackService",
   {},
   {
-    requestFeedback: function(twilioAccount, twilioNumber, callback)
+    scheduleFeedback: function(twilioAccount, twilioNumber, callback)
     {
-      var outbound1 = OutboundMessage.Factory(twilioAccount, "first");
-      outbound1.set("from", twilioNumber.get("phoneNumber"));
-      outbound1.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
-      outbound1.save({
-      success: function(outbound1) {
-        var outbound2 = OutboundMessage.Factory(twilioAccount, "second");
-        outbound2.set("from", twilioNumber.get("phoneNumber"));
-        outbound2.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
-        outbound2.save({
-        success: function(outbound2) {
-          outbound1.send(function() {
-            outbound2.send(function() {
-              var discussion = new FeedbackDiscussion();
-              discussion.set("numberId", twilioNumber.id);
-              discussion.set("accountId", twilioAccount.id);
-              discussion.set("twilioNumber", twilioNumber.get("phoneNumber"));
-              discussion.set("customerNumber", twilioAccount.get("phoneNumber"));
-              discussion.set("state", 2);
-              discussion.save({
-              success: function(discussion) {
-                callback(discussion, outbound1, outbound2);
-              }});
+      var schedule = new ScheduledFeedback();
+      schedule.set("twilioAccount", twilioAccount);
+      schedule.set("twilioNumber", twilioNumber);
+      schedule.set("isProcessed", false);
+      schedule.save(null, {
+        success: function(schedule)
+        {
+          callback(schedule);
+        }
+      });
+    },
+    requestFeedback: function(twilioAccount, twilioNumber, scheduledFeedback)
+    {
+      // when the feedback is sent, save the
+      // ScheduledFeedback entry to be processed.
+      scheduledFeedback.set("isProcessed", true);
+      scheduledFeedback.set("dateSent", new Date());
+      scheduledFeedback.save(null, {
+      success: function(scheduledFeedback)
+      {
+        var outbound1 = OutboundMessage.Factory(twilioAccount, "first");
+        outbound1.set("from", twilioNumber.get("phoneNumber"));
+        outbound1.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+        outbound1.save({
+        success: function(outbound1) {
+          var outbound2 = OutboundMessage.Factory(twilioAccount, "second");
+          outbound2.set("from", twilioNumber.get("phoneNumber"));
+          outbound2.set("accountSid", 'AC89bea12cb6782b72bc47f37999953b2f');
+          outbound2.save({
+          success: function(outbound2) {
+            outbound1.send(function(err_txt1, txt1) {
+              outbound2.send(function(err_txt2, txt2) {
+                var discussion = new FeedbackDiscussion();
+                discussion.set("numberId", twilioNumber.id);
+                discussion.set("accountId", twilioAccount.id);
+                discussion.set("twilioNumber", twilioNumber.get("phoneNumber"));
+                discussion.set("customerNumber", twilioAccount.get("phoneNumber"));
+                discussion.set("state", 2);
+                discussion.save({
+                success: function(discussion) {}});
+              });
             });
-          });
+          }});
         }});
       }});
     },
@@ -424,6 +455,7 @@ Parse.Object.registerSubclass("TwilioNumber", TwilioNumber);
 Parse.Object.registerSubclass("OutboundMessage", OutboundMessage);
 Parse.Object.registerSubclass("IncomingMessage", IncomingMessage);
 Parse.Object.registerSubclass("FeedbackDiscussion", FeedbackDiscussion);
+Parse.Object.registerSubclass("ScheduledFeedback", ScheduledFeedback);
 Parse.Object.registerSubclass("FeedbackService", FeedbackService);
 
 /*******************************************************************************
@@ -668,8 +700,6 @@ Parse.Cloud.define("syncAccount", function(request, response)
       account.set("url", url);
 
       // save Parse App TwilioAccount
-      // then sync with Twilio's subaccount (or create)
-      // then save Twilio's SID in Parse App TwilioAccount entity
       account.save(null, {
       success: function(act) {
         response.success({"twilioAccount": act});
@@ -711,13 +741,13 @@ Parse.Cloud.define("startTree", function(request, response)
         // we can directly send the SMS, a TwilioNumber entry
         // was already present in the database.
         try {
-          FeedbackService.requestFeedback(parseTwilioAccount, parseTwilioNumber,
-            function(feedbackDiscussion, outboundFirst, outboundSecond) {
-            // SMS sent callback, feedback request SENT !
+          FeedbackService.scheduleFeedback(parseTwilioAccount, parseTwilioNumber,
+            function(scheduledFeedback) {
+            // feedback request SCHEDULED !
               response.success({
-                "outboundMessages": [],
                 "twilioNumber": parseTwilioNumber,
                 "twilioAccount": parseTwilioAccount,
+                "scheduledFeedback": scheduledFeedback,
                 "errorMessage": false
               });
             });
@@ -916,6 +946,15 @@ Parse.Cloud.define("listFeedback", function(request, response)
     }});
 });
 
+/**
+ * cancelSubscription CloudCode Function
+ * This function is used to CANCEL a user subscription on Stripe.
+ * Since this means that the user will not pay anymore, access to
+ * the App should be blocked upon call of this function.
+ * the TwilioNumber entry linked to the given userId is deleted.
+ * the IncomingPhoneNumber entry AT TWILIO is also deleted to prevent
+ * your master account to pay for the number.
+ **/
 Parse.Cloud.define("cancelSubscription", function(request, response)
 {
     var userId = "undefined" != typeof request.params.userId ?
@@ -1012,4 +1051,65 @@ Parse.Cloud.define("cancelSubscription", function(request, response)
       console.log("Error becoming User: " + error.message);
       response.error(error.message);
     });
+});
+
+
+/**
+ * listCancelledAccounts CloudCode Function
+ * This function can be called to retrieve a list of Parse.User
+ * entries for which the subscription are not active anymore.
+ **/
+Parse.Cloud.define("listCancelledAccounts", function(request, response)
+{
+    // validate userId by loading Parse.User
+    // then load IncomingMessage entries
+    var cancelledUsers = new Parse.Query(Parse.User);
+    cancelledUsers.equalTo("isActive", false);
+    cancelledUsers.equalTo("doneTwilioDelete", false);
+    cancelledUsers.find({
+    success: function(cancelledUsers)
+    {
+      response.success({"cancelledUsers": cancelledUsers});
+    }});
+});
+
+/**
+ * requestFeedback Background Job
+ * This job should check for ScheduledFeedback entries which have
+ * not yet been treated AND were created 15 minutes ago (minimum).
+ **/
+Parse.Cloud.job("requestFeedback", function(request, status)
+{
+  var scheduledRequests = new Parse.Query(ScheduledFeedback);
+  scheduledRequests.equalTo("isProcessed", false);
+  scheduledRequests.include("twilioAccount");
+  scheduledRequests.include("twilioNumber");
+  scheduledRequests.find({
+    success: function(scheduledRequests)
+    {
+      if (! scheduledRequests || ! scheduledRequests.length)
+        status.success("Nothing to do");
+      else {
+        var countRequests = 0;
+        for (var i = 0; i < scheduledRequests.length; i++) {
+          var scheduledFeedback = scheduledRequests[i];
+          var dateScheduled     = new Date(scheduledFeedback.get("createdAt"));
+          var twilioAccount     = scheduledFeedback.get("twilioAccount");
+          var twilioNumber      = scheduledFeedback.get("twilioNumber");
+
+          // check dateScheduled, if its older than 15 minutes
+          // then we can send the Feedback Request.
+          var shouldSendTime = dateScheduled.getTime() + (15*60000);
+          var nowTime = (new Date()).getTime();
+          if (nowTime < shouldSendTime)
+            continue;
+
+          FeedbackService.requestFeedback(twilioAccount, twilioNumber, scheduledFeedback);
+          countRequests++;
+        }
+
+        status.success("Sent " + countRequests + " Feedback Requests!");
+      }
+    }
+  });
 });
