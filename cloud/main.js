@@ -23,6 +23,7 @@ limitations under the License.
  * @link https://twiliotreebot.parseapp.com
 **/
 require('cloud/app.js');
+var bitly = require("cloud/bitly.js");
 
 /*******************************************************************************
  * Models classes definition for TwilioTreeBot
@@ -165,7 +166,7 @@ var OutboundMessage = Parse.Object.extend("OutboundMessage",
         case "yes-second":
           text = "Reviews really help out the office, "
                + "if you want to leave one here is the link: "
-               + parseTwilioAccount.get("url");
+               + parseTwilioAccount.get("url"); // already shortened!
           break;
 
         case "no-first":
@@ -693,20 +694,30 @@ Parse.Cloud.define("syncAccount", function(request, response)
       response.success({"twilioAccount": twilioAccount});
     else {
       // customer account must be created
-      var account = new TwilioAccount();
-      account.set("firstName", name);
-      account.set("phoneNumber", phone);
-      account.set("userId", userId);
-      account.set("url", url);
+      // first we need to shorten the URL
 
-      // save Parse App TwilioAccount
-      account.save(null, {
-      success: function(act) {
-        response.success({"twilioAccount": act});
-      },
-      error: function(act, error) {
-        response.error(error.message);
-      }});
+      bitly.initializeWithOAuthToken("0df98d6f217bae3675e1c3b817e64e9eb69efb4d");
+      bitly.shortenUrl({longUrl: url}, {
+        success: function(shortUrl) {
+          var account = new TwilioAccount();
+          account.set("firstName", name);
+          account.set("phoneNumber", phone);
+          account.set("userId", userId);
+          account.set("url", shortUrl);
+
+          // save Parse App TwilioAccount
+          account.save(null, {
+          success: function(act) {
+            response.success({"twilioAccount": act});
+          },
+          error: function(act, error) {
+            response.error(error.message);
+          }});
+        },
+        error: function(error) {
+          console.log("Could not shorten URL: " + error);
+        }
+      });
     }
   }});
 });
