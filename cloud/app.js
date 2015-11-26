@@ -243,7 +243,7 @@ app.get('/my-account', function(request, response)
     var settings = {
       "officeName": currentUser.get("officeName"),
       "areaCode": currentUser.get("areaCode"),
-      "phoneNumber": currentUser.get("twilioPhoneNumber"),
+      "phoneNumber": "N/A",
       "emailAddress": currentUser.get("username"),
       "subscriptionPlan": "No active Subscription",
       "subscriptionExpire": "N/A"
@@ -385,39 +385,56 @@ app.get('/cancel-subscription', function(request, response)
     response.redirect("/signin");
   }
   else if (! currentUser.get("isActive"))
-    response.redirect("/subscription");
+    response.redirect("/my-account");
   else {
-    Parse.Config.get().then(
-      function(config)
+    Parse.Cloud.run("cancelSubscription", {
+      userId: currentUser.id,
+      userToken: request.session.sessionToken
+    }, {
+      success: function (cloudResponse)
       {
-        stripeApiKey = config.get("stripeTestSecretKey");
-        apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
-        cancelUrl = apiUrl + "/customers/" + currentUser.get("stripeCustomerId")
-                  + "/subscriptions/" + currentUser.get("stripeSubscriptionId");
+        response.redirect("/subscription");
+      },
+      error: function (cloudResponse)
+      {
+        console.log("Error cancelling Subscription: " + cloudResponse.message);
+        response.redirect("/my-account");
+      }
+    });
+  }
+});
 
-        // @see https://stripe.com/docs/api#cancel_subscription
-        Parse.Cloud.httpRequest({
-          method: "DELETE",
-          url: cancelUrl,
-          body: {at_period_end: true}
-        }).then(
-          function(httpRequest)
-          {
-            // next time the subscription expires, it will not
-            // be able to renew.
-            currentUser.set("stripeSubscriptionId", "");
-            currentUser.save(null, {
-              success:function(currentUser) {
-                response.redirect("/?success=" + escape("You have disabled the Automatic Subscription Renewal!"));
-              }
-            });
-          },
-          function(httpRequest)
-          {
-            var object = JSON.parse(httpRequest.text);
-            response.redirect("/?error=" + escape("Could not cancel subscription (Message: " + object.error.message + ")"));
-          });
-      });
+/**
+ * GET /twilio-subaccounts
+ * describes the twilio-subaccounts GET request.
+ * this handler loads and displays the Parse.User entries
+ * for which the Twilio Subaccount must be deleted.
+ **/
+app.get('/twilio-subaccounts', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser || ! currentUser.get("isAdmin")) {
+    response.redirect("/signin");
+  }
+  else {
+
+    // load IncomingMessage entries linked to
+    // currentUser.twilioPhoneNumber
+    Parse.Cloud.run("listCancelledAccounts", {
+      userId: currentUser.id
+    }, {
+      success: function (cloudResponse)
+      {
+        response.render('subaccounts', {
+          "currentUser": currentUser,
+          "cancelledUsers": cloudResponse.cancelledUsers
+        });
+      },
+      error: function (cloudResponse)
+      {
+        response.send("Error: " + cloudResponse.message);
+      }
+    });
   }
 });
 
@@ -764,24 +781,55 @@ app.post('/subscription', function(request, response)
               }).then(
               function(httpRequest)
               {
-                var json_obj = JSON.parse(httpRequest.text);
+                var stripeResponse = JSON.parse(httpRequest.text);
                 var create = new Date();
                 var expire = new Date(new Date(create).setMonth(create.getMonth()+1));
 
-                // save stripe data and redirect to homepage
                 currentUser.set("stripeCustomerId", object.id);
-                currentUser.set("stripeSubscriptionId", json_obj.id);
+                currentUser.set("stripeSubscriptionId", stripeResponse.id);
                 currentUser.set("stripeEmail", stripeEmail);
                 currentUser.set("stripePlan", stripePlan);
                 currentUser.set("isActive", true);
                 currentUser.set("activeUntil", expire);
-                currentUser.save(null, {
-                  success:function(currentUser)
-                  {
-                    var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
-                    response.redirect("/?success=" + msg);
-                  }
-                });
+
+                if (! currentUser.get("twilioPhoneNumber")) {
+                  // user needs a new twilio number- coming here
+                  // means the user cancelled his previous subscription
+                  Parse.Cloud.run("createNumber", {
+                    userId: currentUser.id,
+                    userArea: currentUser.get("areaCode"),
+                    country: currentUser.get("countryISO")
+                  }, {
+                    success: function (cloudResponse)
+                    {
+                      var feedbackNumber = cloudResponse.twilioNumber.get("phoneNumber");
+                      currentUser.set("twilioPhoneNumber", feedbackNumber);
+                      currentUser.save(null, {
+                        success: function(currentUser) {
+                          var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
+                          response.redirect("/?success=" + msg);
+                        }
+                      });
+                    },
+                    error: function (error)
+                    {
+                      response.render('subscription', {
+                        "currentUser": currentUser,
+                        "errorMessage": error.message});
+                    }
+                  });
+                }
+                else {
+                  // no need to purchase new number. coming here means
+                  // the user just registered to the platform.
+                  currentUser.save(null, {
+                    success:function(currentUser)
+                    {
+                      var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
+                      response.redirect("/?success=" + msg);
+                    }
+                  });
+                }
               },
               function(httpRequest)
               {

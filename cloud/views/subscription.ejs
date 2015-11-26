@@ -75,7 +75,7 @@
                             <input type="hidden" name="stripeToken" id="stripe-token" />
                             <input type="hidden" name="stripeEmail" id="stripe-email" />
                             <input type="hidden" name="stripePlan" id="stripe-plan" />
-                            <input id="subscription-submit" type="submit" name="submit" value="Subscribe Now" class="btn btn-wide">
+                            <input id="subscription-submit" type="submit" name="submit" value="Subscribe Now" class="btn btn-wide" style="display: none;">
                         </div>
 
                     </form>
@@ -182,13 +182,7 @@ function(config)
 
             $(".subscribe-btn[data-id='" + chosen_plan + "']").css("background", "#77b054");
             $(".subscribe-btn[data-id!='" + chosen_plan + "']").css("background", "#aba6a6");
-
-            var plan_text    = $(".subscribe-btn[data-id='" + chosen_plan + "']").attr("data-name");
-            var success_html = $("#success").html().replace("%%PLAN%%", plan_text);
-            $("#success").html(success_html);
-            $("#success").fadeIn("slow");
-
-            registerCancelListener();
+            $("#subscription-submit").click();
         }
     });
 },
@@ -206,6 +200,7 @@ $(document).ready(function()
             "background": "#fff url(/images/ajax-loading.gif) no-repeat center center"
         });
         $("#subscription-submit").val("");
+        $("#subscription-submit").fadeIn("fast");
 
         if (! $("#stripe-token").val().length) {
             $("#subscription-submit").css("background", bg_backup);
