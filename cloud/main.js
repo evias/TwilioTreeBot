@@ -679,6 +679,7 @@ Parse.Cloud.define("syncAccount", function(request, response)
     response.error("Fields firstName and phoneNumber are mandatory !");
 
   phone = phone[0] == '+' ? phone : ("+" + phone);
+  url   = !url.match(/^http(s)?:/) ? "http://" + url : url;
 
   // if account already exists, query for it
   // and send the account in the response
