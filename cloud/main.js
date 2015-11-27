@@ -266,7 +266,33 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
         }
       });
     },
-    requestFeedback: function(twilioAccount, twilioNumber, scheduledFeedback)
+    sendRequests: function(scheduledRequests, callback)
+    {
+      if (! scheduledRequests || ! scheduledRequests.length)
+        // DONE job
+        return callback();
+
+      request = scheduledRequests.shift();
+      var remainingScheduled = scheduledRequests;
+
+      var scheduledFeedback = request;
+      var dateScheduled     = new Date(scheduledFeedback.get("createdAt"));
+      var twilioAccount     = scheduledFeedback.get("twilioAccount");
+      var twilioNumber      = scheduledFeedback.get("twilioNumber");
+
+      // check dateScheduled, if its older than 15 minutes
+      // then we can send the Feedback Request.
+      var shouldSendTime = dateScheduled.getTime() + (15*60000);
+      var nowTime = (new Date()).getTime();
+      if (nowTime < shouldSendTime)
+        // the current feedback request is not old enough, should
+        // not be sent now, go ahead with remainingScheduled.
+        return FeedbackService.sendRequests(remainingScheduled, callback);
+
+      FeedbackService.requestFeedback(twilioAccount, twilioNumber, scheduledFeedback, remainingScheduled,
+        function(remainingScheduled) { FeedbackService.sendRequests(remainingScheduled, callback); });
+    },
+    requestFeedback: function(twilioAccount, twilioNumber, scheduledFeedback, remainingScheduled, callback)
     {
       // when the feedback is sent, save the
       // ScheduledFeedback entry to be processed.
@@ -294,12 +320,18 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
                 discussion.set("customerNumber", twilioAccount.get("phoneNumber"));
                 discussion.set("state", 2);
                 discussion.save({
-                success: function(discussion) {}});
+                success: function(discussion) {
+                  callback(remainingScheduled);
+                },
+                error:function(err, discussion) { console.log("Could not save discussion: " + err.message); }});
               });
             });
-          }});
-        }});
-      }});
+          },
+          error:function(err, outbound2) { console.log("Could not save outbound2: " + err.message); }});
+        },
+        error:function(err, outbound1) { console.log("Could not save outbound1: " + err.message); }});
+      },
+      error:function(err, scheduledFeedback) { console.log("Could not update ScheduledFeedback: " + err.message); }});
     },
     delegateService: function(incomingMessage, feedbackDiscussion, callback)
     {
@@ -1102,25 +1134,12 @@ Parse.Cloud.job("requestFeedback", function(request, status)
       if (! scheduledRequests || ! scheduledRequests.length)
         status.success("Nothing to do");
       else {
-        var countRequests = 0;
-        for (var i = 0; i < scheduledRequests.length; i++) {
-          var scheduledFeedback = scheduledRequests[i];
-          var dateScheduled     = new Date(scheduledFeedback.get("createdAt"));
-          var twilioAccount     = scheduledFeedback.get("twilioAccount");
-          var twilioNumber      = scheduledFeedback.get("twilioNumber");
+        var msg = "Sent " + scheduledRequests.length + " Feedback Requests!";
 
-          // check dateScheduled, if its older than 15 minutes
-          // then we can send the Feedback Request.
-          var shouldSendTime = dateScheduled.getTime() + (15*60000);
-          var nowTime = (new Date()).getTime();
-          if (nowTime < shouldSendTime)
-            continue;
-
-          FeedbackService.requestFeedback(twilioAccount, twilioNumber, scheduledFeedback);
-          countRequests++;
-        }
-
-        status.success("Sent " + countRequests + " Feedback Requests!");
+        FeedbackService.sendRequests(scheduledRequests, function()
+          {
+            status.success(msg);
+          });
       }
     }
   });
