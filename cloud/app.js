@@ -496,11 +496,11 @@ app.post("/validateAreaCode", function(request, response)
   }, {
     success: function (cloudResponse)
     {
-      response.send("OK");
+      response.status(200).send("OK");
     },
     error: function (cloudResponse)
     {
-      response.send("Error: " + cloudResponse.message);
+      response.status(200).send("Error: " + cloudResponse.message);
     }
   });
 });
@@ -582,29 +582,7 @@ app.post('/signup', function(request, response)
             request.session.loggedState  = true;
             request.session.sessionToken = currentUser.getSessionToken();
 
-            Parse.Cloud.run("createNumber", {
-              userId: currentUser.id,
-              userArea: currentUser.get("areaCode"),
-              country: currentUser.get("countryISO")
-            }, {
-              success: function (cloudResponse)
-              {
-                var feedbackNumber = cloudResponse.twilioNumber.get("phoneNumber");
-                currentUser.set("twilioPhoneNumber", feedbackNumber);
-                currentUser.save(null, {
-                  success: function(currentUser) {
-                    response.redirect("/");
-                  }
-                });
-              },
-              error: function (error)
-              {
-                response.render('signup', {
-                  "currentUser": false,
-                  "formValues": formValues,
-                  "errorMessage": error.message});
-              }
-            });
+            response.redirect("/subscription");
           },
           error: function(currentUser, error) {
             request.session = null;
@@ -618,95 +596,6 @@ app.post('/signup', function(request, response)
       }
     }
   });
-});
-
-/**
- * POST /sendRequest
- * this handler describes the sendRequest POST request
- * which initiates Parse CloudCode function calls to
- * syncAccount and startTree. After this handler has
- * executed, a FeedbackDiscussion will have been created
- * and OutboundMessage entries sent to the TwilioAccount.
- **/
-app.post('/sendRequest', function(request, response)
-{
-  var currentUser = Parse.User.current();
-  if (! currentUser)
-    // no session available => back to login
-    response.redirect("/signin");
-  else {
-    // valid /sendRequest POST request, session is available.
-    var firstName   = request.body.firstName;
-    var phoneNumber = request.body.phoneNumber;
-    var url         = request.body.url;
-    var errors      = [];
-
-    // simple input presence validation
-    if (! firstName || ! firstName.length)
-      errors.push("The customer name may not be empty.");
-
-    if (! phoneNumber || ! phoneNumber.length) {
-      errors.push("The customer phone number may not be empty.");
-    }
-    else if (phoneNumber[0] != '+' || phoneNumber[1] != '1')
-      errors.push("The phone number must be in Format: +1###-###-####.");
-
-    if (! url || ! url.length)
-      errors.push("The URL may not be empty.");
-
-    if (errors.length)
-      // refresh with error messages displayed
-      response.redirect("/?error=" + escape(errors.join(" ", errors)));
-    else {
-      // VALID form input, we can now initiate the
-      // Feedback Discussion, etc.
-
-      // make sure next time currentUser.url is set.
-      currentUser.set("defaultURL", url);
-      currentUser.save();
-
-      Parse.Cloud.run("syncAccount", {
-        userId: currentUser.id,
-        firstName: firstName,
-        phoneNumber: phoneNumber,
-        url: url,
-        userArea: currentUser.get("areaCode")
-      }, {
-        success: function(cloudResponse)
-        {
-          // get TwilioAccount entry from response
-          // then initiate /startTree API request.
-          var twilioAccount = cloudResponse.twilioAccount;
-          Parse.Cloud.run("startTree", {
-            userId: currentUser.id,
-            accountId: twilioAccount.id,
-            userAreaCode: currentUser.get("areaCode")
-          },
-          {
-            success: function(cloudResponse) {
-              if (cloudResponse.errorMessage)
-                response.redirect("/?error=" + escape(cloudResponse.errorMessage));
-              else {
-                success = "Congratulations ! You have sent a Feedback "
-                        + "Request to your customer '" + twilioAccount.get("firstName") + "'.";
-                response.redirect("/?success=" + escape(success));
-              }
-            },
-            error: function(error) {
-              response.redirect("/?error=" + escape(error.message));
-            }
-          }); /* end Parse.Cloud.run("startTree") */
-        },
-        error: function(error)
-        {
-          // error happened on /syncAccount, we could not sync
-          // the input data with a new TwilioAccount entry.
-          // should never happen.
-          response.redirect("/?error=" + escape(error.message));
-        }
-      }); /* end Parse.Cloud.run("syncAccount") */
-    } /* end if (errors.length) block */
-  } /* end if (!currentUser) block */
 });
 
 /**
@@ -792,44 +681,30 @@ app.post('/subscription', function(request, response)
                 currentUser.set("isActive", true);
                 currentUser.set("activeUntil", expire);
 
-                if (! currentUser.get("twilioPhoneNumber")) {
-                  // user needs a new twilio number- coming here
-                  // means the user cancelled his previous subscription
-                  Parse.Cloud.run("createNumber", {
-                    userId: currentUser.id,
-                    userArea: currentUser.get("areaCode"),
-                    country: currentUser.get("countryISO")
-                  }, {
-                    success: function (cloudResponse)
-                    {
-                      var feedbackNumber = cloudResponse.twilioNumber.get("phoneNumber");
-                      currentUser.set("twilioPhoneNumber", feedbackNumber);
-                      currentUser.save(null, {
-                        success: function(currentUser) {
-                          var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
-                          response.redirect("/?success=" + msg);
-                        }
-                      });
-                    },
-                    error: function (error)
-                    {
-                      response.render('subscription', {
-                        "currentUser": currentUser,
-                        "errorMessage": error.message});
-                    }
-                  });
-                }
-                else {
-                  // no need to purchase new number. coming here means
-                  // the user just registered to the platform.
-                  currentUser.save(null, {
-                    success:function(currentUser)
-                    {
-                      var msg = escape("The subscription process ended successfully. Thank you for subscribing !");
-                      response.redirect("/?success=" + msg);
-                    }
-                  });
-                }
+                // user needs a new twilio number
+                Parse.Cloud.run("createNumber", {
+                  userId: currentUser.id,
+                  userArea: currentUser.get("areaCode"),
+                  country: currentUser.get("countryISO")
+                }, {
+                  success: function (cloudResponse)
+                  {
+                    var feedbackNumber = cloudResponse.twilioNumber.get("phoneNumber");
+                    currentUser.set("twilioPhoneNumber", feedbackNumber);
+                    currentUser.save(null, {
+                      success: function(currentUser) {
+                      var msg = escape("Success! You are now ready to start improving the offices online reviews.");
+                        response.redirect("/?success=" + msg);
+                      }
+                    });
+                  },
+                  error: function (error)
+                  {
+                    response.render('subscription', {
+                      "currentUser": currentUser,
+                      "errorMessage": "Could not create Number at Twilio (Message: " + error.message});
+                  }
+                });
               },
               function(httpRequest)
               {
@@ -851,6 +726,93 @@ app.post('/subscription', function(request, response)
         });
     }
   }
+});
+
+/**
+ * POST /sendRequest
+ * this handler describes the sendRequest POST request
+ * which initiates Parse CloudCode function calls to
+ * syncAccount and startTree. After this handler has
+ * executed, a FeedbackDiscussion will have been created
+ * and OutboundMessage entries sent to the TwilioAccount.
+ **/
+app.post('/sendRequest', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser)
+    // no session available => back to login
+    response.redirect("/signin");
+  else {
+    // valid /sendRequest POST request, session is available.
+    var firstName   = request.body.firstName;
+    var phoneNumber = request.body.phoneNumber;
+    var url         = request.body.url;
+    var errors      = [];
+
+    // simple input presence validation
+    if (! firstName || ! firstName.length)
+      errors.push("The customer name may not be empty.");
+
+    if (! phoneNumber || ! phoneNumber.length) {
+      errors.push("The customer phone number may not be empty.");
+    }
+    else if (phoneNumber[0] != '+' || phoneNumber[1] != '1')
+      errors.push("The phone number must be in Format: +1###-###-####.");
+
+    if (! url || ! url.length)
+      errors.push("The URL may not be empty.");
+
+    if (errors.length)
+      // refresh with error messages displayed
+      response.redirect("/?error=" + escape(errors.join(" ", errors)));
+    else {
+      // VALID form input, we can now initiate the
+      // Feedback Discussion, etc.
+
+      // make sure next time currentUser.url is set.
+      currentUser.set("defaultURL", url);
+      currentUser.save();
+
+      Parse.Cloud.run("syncAccount", {
+        userId: currentUser.id,
+        firstName: firstName,
+        phoneNumber: phoneNumber,
+        url: url,
+        userArea: currentUser.get("areaCode")
+      }, {
+        success: function(cloudResponse)
+        {
+          // get TwilioAccount entry from response
+          // then initiate /startTree API request.
+          var twilioAccount = cloudResponse.twilioAccount;
+          Parse.Cloud.run("startTree", {
+            userId: currentUser.id,
+            accountId: twilioAccount.id,
+            userAreaCode: currentUser.get("areaCode")
+          },
+          {
+            success: function(cloudResponse) {
+              if (cloudResponse.errorMessage)
+                response.redirect("/?error=" + escape(cloudResponse.errorMessage));
+              else {
+                response.redirect("/?success=" + escape("Sent! Ready for the next patient."));
+              }
+            },
+            error: function(error) {
+              response.redirect("/?error=" + escape(error.message));
+            }
+          }); /* end Parse.Cloud.run("startTree") */
+        },
+        error: function(error)
+        {
+          // error happened on /syncAccount, we could not sync
+          // the input data with a new TwilioAccount entry.
+          // should never happen.
+          response.redirect("/?error=" + escape(error.message));
+        }
+      }); /* end Parse.Cloud.run("syncAccount") */
+    } /* end if (errors.length) block */
+  } /* end if (!currentUser) block */
 });
 
 /**
@@ -883,21 +845,21 @@ app.post('/handleFeedback', function(request, response)
     success: function(cloudResponse)
     {
       if (cloudResponse && !cloudResponse.result)
-        response.send({
+        response.status(200).send({
           "result": false,
           "errorMessage": "/handleTree Error: " + cloudResponse.errorMessage});
       else if (cloudResponse && cloudResponse.result)
-        response.send({
+        response.status(200).send({
           "result": true,
           "errorMessage": false});
       else
-        response.send({
+        response.status(200).send({
           "result": false,
           "errorMessage": "Unknown /handleFeedback Error Happened."});
     },
     error: function(error)
     {
-      response.send({
+      response.status(200).send({
         "result": false,
         "errorMessage": "/handleTree Error: " + error.message});
     }
