@@ -321,6 +321,7 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
                 discussion.set("state", 2);
                 discussion.save({
                 success: function(discussion) {
+                  console.log("Saved FeedbackDiscussion: " + discussion.id);
                   callback(remainingScheduled);
                 },
                 error:function(err, discussion) { console.log("Could not save discussion: " + err.message); }});
@@ -1134,7 +1135,7 @@ Parse.Cloud.job("requestFeedback", function(request, status)
       if (! scheduledRequests || ! scheduledRequests.length)
         status.success("Nothing to do");
       else {
-        var msg = "Sent " + scheduledRequests.length + " Feedback Requests!";
+        var msg = "Found " + scheduledRequests.length + " unprocessed Feedback Requests!";
 
         FeedbackService.sendRequests(scheduledRequests, function()
           {
