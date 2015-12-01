@@ -640,7 +640,8 @@ app.post('/subscription', function(request, response)
       Parse.Config.get().then(
         function(config)
         {
-          stripeApiKey = config.get("stripeTestSecretKey");
+          whichKey = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
+          stripeApiKey = config.get(whichKey + "SecretKey");
           apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
 
           // first we need to create a Stripe CUSTOMER
