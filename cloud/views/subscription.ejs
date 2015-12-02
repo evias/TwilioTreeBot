@@ -90,7 +90,7 @@
 
 <script src="https://checkout.stripe.com/checkout.js"></script>
 <script>
-var registerClickListeners = function()
+var registerClickListeners = function(stripeHandler)
 {
     $(".subscribe-btn").on("click", function(e)
     {
@@ -185,13 +185,13 @@ function(config)
             $("#subscription-submit").click();
         }
     });
+
+    registerClickListeners(stripeHandler);
 },
 function(error) {});
 
 $(document).ready(function()
 {
-    registerClickListeners();
-
     $("#plan-subscription").submit(function(e)
     {
         var bg_backup = $("#subscription-submit").css("background");

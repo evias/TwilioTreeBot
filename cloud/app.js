@@ -640,8 +640,8 @@ app.post('/subscription', function(request, response)
       Parse.Config.get().then(
         function(config)
         {
-          whichKey = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
-          stripeApiKey = config.get(whichKey + "SecretKey");
+          whichKey      = config.get("whichStripeKey"); // "stripeTest" or "stripeLive"
+          stripeApiKey  = config.get(whichKey + "SecretKey");
           apiUrl = "https://" + stripeApiKey + ":@api.stripe.com/v1";
 
           // first we need to create a Stripe CUSTOMER
@@ -812,6 +812,63 @@ app.post('/sendRequest', function(request, response)
           response.redirect("/?error=" + escape(error.message));
         }
       }); /* end Parse.Cloud.run("syncAccount") */
+    } /* end if (errors.length) block */
+  } /* end if (!currentUser) block */
+});
+
+
+/**
+ * POST /sendReply
+ * this handler describes the sendReply POST request
+ * which initiates Parse CloudCode function call to
+ * replyTo.
+ **/
+app.post('/sendReply', function(request, response)
+{
+  var currentUser = Parse.User.current();
+  if (! currentUser)
+    // no session available => back to login
+    response.redirect("/signin");
+  else {
+    // valid /sendRequest POST request, session is available.
+    var message      = request.body.m;
+    var phoneNumber  = request.body.n;
+    var incomingId   = request.body.i;
+    var discussionId = request.body.d;
+    var errors      = [];
+
+    // simple input presence validation
+    if (! message || ! message.length)
+      errors.push("The reply message may not be empty.");
+
+    if (! phoneNumber || ! phoneNumber.length) {
+      errors.push("The customer phone number may not be empty.");
+    }
+    else if (phoneNumber[0] != '+' || phoneNumber[1] != '1')
+      errors.push("The phone number must be in Format: +1###-###-####.");
+
+    if (errors.length)
+      // refresh with error messages displayed
+      response.redirect("/?error=" + escape(errors.join(" ", errors)));
+    else {
+      // VALID form input, we can now initiate the reply process
+      Parse.Cloud.run("replyTo", {
+        "userId": currentUser.id,
+        "incomingId": incomingId,
+        "discussionId": discussionId,
+        "message": message
+      },
+      {
+        success: function(cloudResponse) {
+          if (cloudResponse.errorMessage)
+            response.status(200).send(cloudResponse.errorMessage);
+          else
+            response.status(200).send("OK");
+        },
+        error: function(error) {
+            response.status(200).send(error.message);
+        }
+      }); /* end Parse.Cloud.run("replyTo") */
     } /* end if (errors.length) block */
   } /* end if (!currentUser) block */
 });

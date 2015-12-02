@@ -1,6 +1,23 @@
 
 <%- include header -%>
 
+<div id="reply-feedback">
+    <div class="form-row">
+        <label>Your Message<span class="required">*</span></label>
+        <textarea id="reply-message" name="replyMessage"
+               placeholder="Your message here.." size="29" rows="7" maxlength="140"
+               required=""></textarea>
+    </div>
+
+    <div class="form-row">
+        <input type="hidden" id="reply-to" name="reply-to" value="" />
+        <input id="reply-submit" type="submit" name="replySubmit" value="Send Message" class="btn btn-wide">
+    </div>
+    <div class="form-row" style="text-align: center;">
+        <a href="#" id="reply-cancel">Cancel</a>
+    </div>
+</div>
+
     <div class="right">
         <section>
             <div class="title align-center">
@@ -61,7 +78,7 @@
                         <div class="align-center">We take privacy very seriously.</div>
 
                         <h3 class="customTitle">Incoming Feedback</h3>
-                        <div class="form-box">
+                        <div class="form-box incoming-container">
                         <% if (! myMessages.length) { %>
                             <div id="#error">
                                 <div><p>You didn't receive any Feedback yet !</div>
@@ -71,6 +88,7 @@
                                 <thead>
                                     <th>Customer</th>
                                     <th>Feedback</th>
+                                    <th>Reply</th>
                                 </thead>
                                 <tbody>
                             <% for (var i = 0; i < myMessages.length; i++) {
@@ -79,9 +97,33 @@
                                                 + dateCreated.getMonth() + "/"
                                                 + dateCreated.getFullYear();
                                 %>
-                                <tr>
+                                <tr class="incoming-message">
                                     <td style="width: 30%;"><%= myMessages[i].get("customerName") %><br /><em><%= myMessages[i].get("from") %></em><br /><em><%= dateString %></em></td>
-                                    <td style="width: 70%;"><%= myMessages[i].get("body") %></td>
+                                    <td style="width: 60%;"><%= myMessages[i].get("body") %></td>
+
+                                    <% if (myMessages[i].get("replyMessage")) { %>
+                                    <td style="width: 10%;">
+                                        <a href="#"
+                                           class="replied btn"
+                                           data-incoming="<%= myMessages[i].id %>"
+                                           data-discussion="<%= myMessages[i].get("discussionId") %>"
+                                           data-number="<%= myMessages[i].get("from") %>">Replied!</a>
+                                    </td>
+                                    <% } else { %>
+                                    <td style="width: 10%;">
+                                        <a href="#reply-feedback"
+                                           class="reply btn"
+                                           data-incoming="<%= myMessages[i].id %>"
+                                           data-discussion="<%= myMessages[i].get("discussionId") %>"
+                                           data-number="<%= myMessages[i].get("from") %>">Reply</a>
+                                        <a href="#"
+                                           class="replied btn hide"
+                                           data-incoming="<%= myMessages[i].id %>"
+                                           data-discussion="<%= myMessages[i].get("discussionId") %>"
+                                           data-number="<%= myMessages[i].get("from") %>">Replied!</a>
+                                    </td>
+                                    <% } %>
+
                                 </tr>
                             <% } %>
                                 </tbody>
@@ -108,6 +150,70 @@ $(document).ready(function()
         });
         $("#account-submit").val("");
         return true;
+    });
+
+    $(".reply.btn").fancybox({
+        helpers:{overlay: {locked: false}},
+        afterShow: function()
+        {
+            var rButton    = $(this.element[0]);
+            var incoming   = rButton.attr("data-incoming");
+            var number     = rButton.attr("data-number");
+            var discussion = rButton.attr("data-discussion");
+            var dButton    = $(".btn.replied[data-incoming='" + incoming + "']");
+
+            $("#reply-cancel").off("click");
+            $("#reply-submit").off("click");
+
+            // CANCEL
+            $("#reply-cancel").on("click", function(e)
+            {
+                $("#reply-message").val("");
+                $.fancybox.close();
+                return false;
+            });
+
+            // REPLY
+            $("#reply-submit").on("click", function(e)
+            {
+                var button     = $(this);
+                var bg_backup  = button.css("background");
+                var val_backup = button.val();
+                button.css({
+                    "background": "#fff url(/images/ajax-loading.gif) no-repeat center center"
+                });
+                button.val("");
+
+                var message = $("#reply-message").val();
+                $.ajax({
+                    url: "/sendReply",
+                    type: "POST",
+                    data: {
+                        m: message, n: number,
+                        i: incoming, d: discussion
+                    },
+                    success: function(d) {
+                        if (d == 'OK') {
+                            rButton.remove();
+                            dButton.fadeIn("slow");
+                        }
+                        else
+                            console.log("/sendReply Response Error: ", d);
+
+                        $.fancybox.close();
+
+                        // clean reply form
+                        $("#reply-message").val("");
+                        button.css("background", bg_backup);
+                        button.val(val_backup);
+                        return false;
+                    }
+                });
+
+                e.preventDefault();
+                return false;
+            });
+        }
     });
 });
 </script>

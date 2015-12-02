@@ -1,3 +1,9 @@
+# [1.8.5](https://github.com/evias/TwilioTreeBot/compare/1.8.4...1.8.5)
+* Bugfix: make sure stripeLive is used for customer creation
+* Implement CloudCode function replyTo and add Reply button to Incoming
+  Messages list.
+* Bugfix subscription Stripe API key ; add error handling to sendReply.
+
 # [1.8.4](https://github.com/evias/TwilioTreeBot/compare/1.8.3...1.8.4)
 
 * Handle drop off: number at twilio should only be purchased upon successfull

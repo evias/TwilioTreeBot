@@ -71,3 +71,28 @@ h3.customTitle {
   text-align:center;
   text-decoration: underline;
 }
+
+.hide { display: none; }
+
+.incoming-container .btn.reply {
+    padding: 1em 0.5em;
+}
+
+.incoming-container .btn.replied {
+    padding: 1em 0.5em;
+    background: rgb(4, 169, 4) !important;
+}
+
+.incoming-container tr.incoming-message { background: #fff; }
+.incoming-container  tr.incoming-message:hover { background: #eee; }
+
+#reply-feedback {
+    display: none;
+    overflow: hidden;
+}
+
+/**
+ * Fancybox fix by Grégory Saive, avoid scrolling back
+ * to the top when a fancybox opens.
+ **/
+html.fancybox-lock {overflow-y: scroll !important}
