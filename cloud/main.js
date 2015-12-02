@@ -199,6 +199,14 @@ var OutboundMessage = Parse.Object.extend("OutboundMessage",
       message.set("accountId", parseTwilioAccount.id);
       message.set("to", parseTwilioAccount.get("phoneNumber"));
       return message;
+    },
+    FactoryReply: function(customerNumber, text)
+    {
+      var message = new OutboundMessage();
+      message.set("treeIndex", "customReply");
+      message.set("msgText", text);
+      message.set("to", customerNumber);
+      return message;
     }
   }
 );
@@ -478,6 +486,26 @@ var FeedbackService = Parse.Object.extend("FeedbackService",
           });
         }});
       }});
+    },
+    sendReplyTo: function(incomingMessage, feedbackDiscussion, replyMessage, callback)
+    {
+      var accountId  = feedbackDiscussion.get("accountId");
+      var custNumber = feedbackDiscussion.get("customerNumber");
+      var feedNumber = feedbackDiscussion.get("twilioNumber");
+      var outboundMessage = OutboundMessage.FactoryReply(custNumber, replyMessage);
+      outboundMessage.set("from", feedNumber);
+      outboundMessage.set("accountId", accountId);
+      outboundMessage.set("accountSid", 'AC262f226d31773bd3420fbae7241df466');
+      outboundMessage.save(null, {
+      success: function(outboundMessage) {
+        incomingMessage.set("replyMessage", outboundMessage);
+        incomingMessage.save(null, {
+        success:function(incomingMessage) {
+          outboundMessage.send(callback);
+        },
+        error: function(err, incomingMessage) { console.log("Could not save incomingMessage.replyMessage: " + err.message); }});
+      },
+      error:function(err, outboundMessage) { console.log("Could not save reply outboundMessage: " + err.message); }});
     }
   }
 );
@@ -1116,6 +1144,57 @@ Parse.Cloud.define("listCancelledAccounts", function(request, response)
     {
       response.success({"cancelledUsers": cancelledUsers});
     }});
+});
+
+/**
+ * The replyTo CloudCode Function describes the Feedback SENDER.
+ * This function can be called to REPLY to an entry of IncomingMessage.
+ **/
+Parse.Cloud.define("replyTo", function(request, response)
+{
+  var userId     = "undefined" != typeof request.params.userId ?
+                  request.params.userId : "";
+  var incomingId = "undefined" != typeof request.params.incomingId ?
+                  request.params.incomingId : "";
+  var discussionId = "undefined" != typeof request.params.discussionId  ?
+                  request.params.discussionId  : "";
+  var replyMessage = "undefined" != typeof request.params.message ?
+                  request.params.message : "";
+
+  // validate userId by loading Parse.User
+  // then load IncomingMessage entries
+  var currentUser = new Parse.Query(Parse.User);
+  currentUser.get(userId, {
+  success: function(currentUser)
+  {
+    if (! currentUser)
+      response.error("Invalid userId provided.");
+    else {
+      var theDiscussion = new Parse.Query(FeedbackDiscussion);
+      theDiscussion.get(discussionId, {
+      success: function(theDiscussion)
+      {
+        if (! theDiscussion)
+          response.error("Wrong discussionId provided.");
+        else {
+          var theIncoming = new Parse.Query(IncomingMessage);
+          theIncoming.get(incomingId, {
+          success: function(theIncoming)
+          {
+            // now send the reply
+            FeedbackService.sendReplyTo(theIncoming, theDiscussion, replyMessage, function()
+              {
+                response.success({"result": true});
+              });
+          }});
+        }
+      }});
+    }
+  },
+  error: function(error)
+  {
+      response.error("User could not be loaded: " + error.message);
+  }});
 });
 
 /**
