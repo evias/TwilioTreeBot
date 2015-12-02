@@ -1182,9 +1182,13 @@ Parse.Cloud.define("replyTo", function(request, response)
           success: function(theIncoming)
           {
             // now send the reply
-            FeedbackService.sendReplyTo(theIncoming, theDiscussion, replyMessage, function()
+            FeedbackService.sendReplyTo(theIncoming, theDiscussion, replyMessage,
+              function(err, text, outbound)
               {
-                response.success({"result": true});
+                if (err)
+                  response.error("Could not send Reply: " + err.message);
+                else
+                  response.success({"result": true});
               });
           }});
         }
