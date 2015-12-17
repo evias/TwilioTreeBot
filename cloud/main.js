@@ -740,6 +740,9 @@ Parse.Cloud.define("syncAccount", function(request, response)
     response.error("Fields firstName and phoneNumber are mandatory !");
 
   phone = phone[0] == '+' ? phone : ("+" + phone);
+
+  // trim, then check for protocol presence.
+  url   = url.replace(/^\s*/, "");
   url   = !url.match(/^http(s)?:/) ? "http://" + url : url;
 
   // if account already exists, query for it
@@ -773,14 +776,17 @@ Parse.Cloud.define("syncAccount", function(request, response)
             response.success({"twilioAccount": act});
           },
           error: function(act, error) {
-            response.error(error.message);
+            response.error("(Save Account) " + error.message);
           }});
         },
         error: function(error) {
-          console.log("Could not shorten URL: " + error);
+          response.error("(Shorten URL) " + error);
         }
       });
     }
+  },
+  error: function(err) {
+    response.error("(Fetch Account) " + error.message);
   }});
 });
 
